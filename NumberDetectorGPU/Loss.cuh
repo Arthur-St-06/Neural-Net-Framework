@@ -31,6 +31,15 @@ public:
 		m_data_accuracy = m_num_predictions_equal_ground_truth->ColMean();
 	}
 
+	float* GetPredictions()
+	{
+		float* predictions = new float[3];
+
+		cudaMemcpy(predictions, m_predictions->d_matrix, 12, cudaMemcpyDeviceToHost);
+
+		return predictions;
+	}
+
 	//void CalculateForward()
 	//{
 	//	// Find loss
@@ -113,6 +122,34 @@ public:
 		m_dinputs->SubstractValueFromMatrix(m_dinputs, 0);
 		// Normalize gradient for optimizer as it sums all will sum all of the samples to one
 		m_dinputs->DivideMatrixByValue(m_dinputs, m_dinputs->GetCol());
+	}
+
+	void SetInputs(Matrix<float>* predictions, Matrix<float>* ground_truth)
+	{
+		if (m_ground_truth != ground_truth)
+		{
+			delete m_ground_truth;
+		}
+		delete m_negative_log_confidencies;
+		delete m_predictions_indicies;
+		delete m_num_predictions_equal_ground_truth;
+		delete m_one_hot_encoded_ground_truth;
+
+		delete m_clipped_predictions;
+		delete m_correct_confidencies;
+		delete m_dinputs;
+
+		m_predictions = predictions;
+		m_ground_truth = ground_truth;
+		m_negative_log_confidencies = new Matrix<float>(1, m_ground_truth->GetRow());
+		m_predictions_indicies = new Matrix<float>(m_ground_truth->GetRow(), 1);
+		m_num_predictions_equal_ground_truth = new Matrix<float>(m_ground_truth->GetRow(), 1);
+		m_one_hot_encoded_ground_truth = new Matrix<float>(m_ground_truth->GetRow(), m_predictions->GetRow());
+
+		m_clipped_predictions = new Matrix<float>(m_predictions->GetCol(), m_predictions->GetRow());
+		m_correct_confidencies = new Matrix<float>(1, m_ground_truth->GetRow());
+
+		m_dinputs = new Matrix<float>(m_predictions->GetCol(), m_predictions->GetRow());
 	}
 
 private:

@@ -122,9 +122,9 @@ public:
 
 	// Create Matrix with set values
 	Matrix(std::vector<std::vector<float>> matrix)
-		: m_row(matrix[0].size())
-		, m_column(matrix.size())
 	{
+		m_row = matrix[0].size();
+		m_column = matrix.size();
 		InitVariables();
 
 		float* pointer_matrix = new float[m_row * m_column];
@@ -136,6 +136,35 @@ public:
 				pointer_matrix[i * m_row + j] = matrix[i][j];
 			}
 		}
+
+		cudaMemcpy(d_matrix, pointer_matrix, d_size, cudaMemcpyHostToDevice);
+	}
+
+	Matrix(std::vector<float> matrix)
+	{
+		m_row = matrix.size();
+		m_column = 1;
+		InitVariables();
+
+		float* pointer_matrix = new float[m_row];
+
+		for (int i = 0; i < m_row; i++)
+		{
+			pointer_matrix[i] = matrix[i];
+		}
+
+		cudaMemcpy(d_matrix, pointer_matrix, d_size, cudaMemcpyHostToDevice);
+	}
+
+	Matrix(float matrix)
+	{
+		m_row = 1;
+		m_column = 1;
+		InitVariables();
+
+		float* pointer_matrix = new float[1];
+
+		pointer_matrix[0] = matrix;
 
 		cudaMemcpy(d_matrix, pointer_matrix, d_size, cudaMemcpyHostToDevice);
 	}

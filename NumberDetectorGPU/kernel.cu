@@ -1,8 +1,4 @@
-﻿
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-
-#include <stdio.h>
+﻿#include <stdio.h>
 #include <iostream>
 #include <chrono>
 
@@ -31,10 +27,10 @@ int main()
 
 	Data<float> data;
 
-	DenseLayer<float> dense1(2, 64, data.GetTrainingDataInputs(), INIT_TYPE::Xavier_Normal, 0, 0, 5e-4, 5e-4);
+	DenseLayer<float> dense1(2, 64, data.GetTrainingDataInputs());
 	ActivationFunction<float> Activation1(dense1.GetOutputs(), ACTIVATION_TYPE::Relu);
 
-	DenseLayer<float> dense2(64, 64, Activation1.GetOutputs(), INIT_TYPE::Xavier_Normal, 0, 0, 5e-4, 5e-4);
+	DenseLayer<float> dense2(64, 64, Activation1.GetOutputs());
 	ActivationFunction<float> Activation2(dense2.GetOutputs(), ACTIVATION_TYPE::Relu);
 
 	DenseLayer<float> dense3(64, 3, Activation2.GetOutputs(), INIT_TYPE::Xavier_Normal);
@@ -72,7 +68,7 @@ int main()
 		dense3.Forward();
 		SoftmaxLoss.Forward();
 
-		if (epoch % 10 == 0)
+		if (epoch % 100 == 0)
 		{
 			reg_loss = 0;
 			reg_loss += dense1.RegularizationLoss();
@@ -96,8 +92,17 @@ int main()
 		optimizer3.UpdateParams();
 	}
 
-	dense1.SetInputs(data.GetValidatingDataInputs());
-	SoftmaxLoss.SetGroundTruth(data.GetTrainingDataOutputs());
+	dense1.SetInputs(data.GetValidatingDataInputs(), true);
+	Activation1.SetInputs(dense1.GetOutputs());
+
+	dense2.SetInputs(Activation1.GetOutputs());
+	Activation2.SetInputs(dense2.GetOutputs());
+
+	dense3.SetInputs(Activation2.GetOutputs());
+	SoftmaxLoss.SetInputs(dense3.GetOutputs(), data.GetValidatingDataOutputs());
+
+	//dense1.SetInputs(data.GetValidatingDataInputs());
+	//SoftmaxLoss.SetGroundTruth(data.GetTrainingDataOutputs());
 
 	dense1.Forward();
 	Activation1.Forward();
@@ -109,7 +114,10 @@ int main()
 	SoftmaxLoss.Forward();
 
 	std::cout << "Loss: " << SoftmaxLoss.GetLoss()->GetLoss();
-	std::cout << ", accuracy: " << SoftmaxLoss.GetLoss()->GetAccuracy() << std::endl;
+	std::cout << ", accuracy: " << SoftmaxLoss.GetLoss()->GetAccuracy();
+	std::cout << ", predictions: " << SoftmaxLoss.GetLoss()->GetPredictions()[0];
+	std::cout << " " << SoftmaxLoss.GetLoss()->GetPredictions()[1];
+	std::cout << " " << SoftmaxLoss.GetLoss()->GetPredictions()[2] << std::endl;;
 
 	// Stop measuring time and calculate the elapsed time
 	end = std::chrono::high_resolution_clock::now();

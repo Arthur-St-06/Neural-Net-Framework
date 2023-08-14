@@ -84,8 +84,10 @@
     <ClInclude Include="Data.cuh" />
     <ClInclude Include="DenseLayer.cuh" />
     <ClInclude Include="DeviceFunctions.cuh" />
+    <ClInclude Include="Layer.cuh" />
     <ClInclude Include="Loss.cuh" />
     <ClInclude Include="Matrix.cuh" />
+    <ClInclude Include="Model.cuh" />
     <ClInclude Include="Optimizer.cuh" />
     <ClInclude Include="SoftmaxCategoricalCrossentropy.cuh" />
   </ItemGroup>

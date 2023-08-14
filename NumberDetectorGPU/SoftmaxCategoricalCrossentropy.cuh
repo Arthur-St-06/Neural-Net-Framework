@@ -18,6 +18,12 @@ public:
 		m_dinputs = new Matrix<T>(m_softmax->GetOutputs()->GetCol(), m_softmax->GetOutputs()->GetRow());
 	}
 
+	void SetInputs(Matrix<float>* softmax_inputs, Matrix<float>* ground_truth)
+	{
+		m_softmax->SetInputs(softmax_inputs);
+		m_loss->SetInputs(m_softmax->GetOutputs(), ground_truth);
+	}
+
 	void Forward()
 	{
 		m_softmax->Forward();
@@ -41,7 +47,7 @@ public:
 		m_dinputs->DivideMatrixByValue(m_dinputs, m_dinputs->GetCol());
 	}
 
-	void SetGroundTruth(Matrix<float>* ground_truth) { m_ground_truth = ground_truth; }
+	//void SetGroundTruth(Matrix<float>* ground_truth) { m_ground_truth = ground_truth; }
 
 	ActivationFunction<T>* GetSoftmax()
 	{

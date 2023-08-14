@@ -6,14 +6,14 @@ template <class T>
 class DenseLayer
 {
 public:
-	DenseLayer(size_t n_inputs, size_t n_outputs, Matrix<T>* inputs, INIT_TYPE init_type = INIT_TYPE::Zero,
-		float weight_regularizer_l1 = 0.0f, float bias_regularizer_l1 = 0.0f, float weight_regularizer_l2 = 0.0f, float bias_regularizer_l2 = 0.0f)
+	DenseLayer(size_t n_inputs, size_t n_outputs, Matrix<T>* inputs, INIT_TYPE init_type = INIT_TYPE::Xavier_Normal,
+		float weight_regularizer_l1 = 0.0f, float bias_regularizer_l1 = 0.0f, float weight_regularizer_l2 = 5e-4f, float bias_regularizer_l2 = 5e-4f)
 		: m_column(n_inputs)
 		, m_row(n_outputs)
 		, m_inputs_row(inputs->GetRow())
 		, m_inputs_column(inputs->GetCol())
-		, m_init_type(init_type)
 		, m_inputs(inputs)
+		, m_init_type(init_type)
 		, m_weight_regularizer_l1(weight_regularizer_l1)
 		, m_bias_regularizer_l1(bias_regularizer_l1)
 		, m_weight_regularizer_l2(weight_regularizer_l2)
@@ -22,7 +22,7 @@ public:
 		// m_weights is automatically transposed as it has random initialization type
 		m_weights = new Matrix<T>(m_column, m_row, m_init_type);
 		m_biases = new Matrix<T>(1, m_row);
-		m_outputs = new Matrix<T>(m_inputs->GetCol(), m_row);
+		m_outputs = new Matrix<T>(m_inputs_column, m_row);
 
 		m_transposed_inputs = new Matrix<T>(m_inputs_row, m_inputs_column);
 		m_transposed_weights = new Matrix<T>(m_row, m_column);
@@ -38,11 +38,34 @@ public:
 		if (m_bias_regularizer_l2 > 0) { m_biases_dl2 = new Matrix<T>(1, m_row); }
 	}
 
+	void SetInputs(Matrix<T>* inputs, bool delete_input = false)
+	{
+		if(delete_input) {
+			delete m_inputs; 
+		}
+		delete m_outputs;
+		delete m_transposed_inputs;
+		delete m_dinputs;
+
+		m_inputs_row = inputs->GetRow();
+		m_inputs_column = inputs->GetCol();
+
+		m_inputs = inputs;
+		m_outputs = new Matrix<T>(m_inputs->GetCol(), m_row);
+		m_transposed_inputs = new Matrix<T>(m_inputs_row, m_inputs_column);
+		m_dinputs = new Matrix<T>(m_inputs_column, m_inputs_row);
+	}
+
 	void Forward()
 	{
 		m_outputs->Dot(m_inputs, m_weights);
+		float* result = new float[12];
+
+		cudaMemcpy(result, m_outputs->d_matrix, 12, cudaMemcpyDeviceToHost);
 		//cudaMemcpy(result, m_outputs->d_matrix, 768000, cudaMemcpyDeviceToHost);
 		m_outputs->AddSingleRow(m_biases);
+
+		cudaMemcpy(result, m_outputs->d_matrix, 12, cudaMemcpyDeviceToHost);
 	}
 
 	void Backward(Matrix<T>* dvalues)
@@ -56,7 +79,6 @@ public:
 		m_transposed_inputs->SetTransposedMatrix(m_inputs);
 
 		m_dweights->Dot(m_transposed_inputs, dvalues);
-
 
 		m_dbiases->ColSum(dvalues);
 
@@ -172,10 +194,7 @@ public:
 		return m_bias_regularizer_l2;
 	}
 
-	void SetInputs(Matrix<T>* inputs)
-	{
-		m_inputs = inputs;
-	}
+	
 
 private:
 	size_t m_row;
