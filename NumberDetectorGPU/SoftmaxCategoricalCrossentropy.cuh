@@ -8,20 +8,43 @@ template <class T>
 class SoftmaxCategoricalCrossentropy
 {
 public:
-	SoftmaxCategoricalCrossentropy(Matrix<T>* softmax_inputs, Matrix<T>* ground_truth)
-		: m_softmax_inputs(softmax_inputs)
-		, m_ground_truth(ground_truth)
+	SoftmaxCategoricalCrossentropy()
 	{
-		m_softmax = new ActivationFunction<float>(m_softmax_inputs, ACTIVATION_TYPE::Softmax);
-		m_loss = new CategoricalCrossentropyLoss(m_softmax->GetOutputs(), m_ground_truth);
+		m_softmax = new ActivationFunction<float>(ACTIVATION_TYPE::Softmax);
+		m_loss = new CategoricalCrossentropyLoss();
 
-		m_dinputs = new Matrix<T>(m_softmax->GetOutputs()->GetCol(), m_softmax->GetOutputs()->GetRow());
+		m_ground_truth = new Matrix<T>();
+		m_softmax_inputs = new Matrix<T>();
+
+		m_dinputs = new Matrix<T>();
 	}
 
 	void SetInputs(Matrix<float>* softmax_inputs, Matrix<float>* ground_truth)
 	{
-		m_softmax->SetInputs(softmax_inputs);
-		m_loss->SetInputs(m_softmax->GetOutputs(), ground_truth);
+		if (m_softmax_inputs != softmax_inputs)
+		{
+			if (m_softmax_inputs->Cleared() == false)
+			{
+				delete m_softmax_inputs;
+			}
+			m_softmax_inputs = softmax_inputs;
+		}
+
+		if (m_ground_truth != ground_truth)
+		{
+			if (m_ground_truth->Cleared() == false)
+			{
+				//delete m_ground_truth;
+			}
+			m_ground_truth = ground_truth;
+		}
+
+		m_softmax->SetInputs(m_softmax_inputs);
+		m_loss->SetInputs(m_softmax->GetOutputs(), m_ground_truth);
+
+		if(m_dinputs->Cleared() == false)
+			m_dinputs->Clear();
+		m_dinputs->InitMatrix(m_softmax->GetOutputs()->GetCol(), m_softmax->GetOutputs()->GetRow());
 	}
 
 	void Forward()
@@ -29,16 +52,6 @@ public:
 		m_softmax->Forward();
 		m_loss->Calculate();
 	}
-
-	//void ForwardSoft()
-	//{
-	//	m_softmax->Forward();
-	//}
-	//
-	//void Calcloss()
-	//{
-	//	m_loss->CalculateForward();
-	//}
 
 	void Backward()
 	{

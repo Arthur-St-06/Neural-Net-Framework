@@ -14,61 +14,71 @@ template <class T>
 class ActivationFunction
 {
 public:
-	ActivationFunction(Matrix<T>* inputs, ACTIVATION_TYPE activation_type)
-		: m_inputs(inputs)
-		, m_inputs_row(inputs->GetRow())
-		, m_inputs_column(inputs->GetCol())
-		, m_activation_type(activation_type)
+	ActivationFunction(ACTIVATION_TYPE activation_type)
+		: m_activation_type(activation_type)
 	{
-		m_outputs = new Matrix<T>(m_inputs_column, m_inputs_row);
-		m_dinputs = new Matrix<T>(m_inputs_column, m_inputs_row);
+		// Initialize empty matricies, which will be filled in SetInputs functions
+		m_outputs = new Matrix<T>;
+		m_dinputs = new Matrix<T>;
 
-		if (m_activation_type == ACTIVATION_TYPE::Softmax) {
-			m_matrix_row_max = new Matrix<T>(m_inputs_column, 1);
-			m_matrix_row_sum = new Matrix<T>(m_inputs_column, 1);
+		if (m_activation_type == ACTIVATION_TYPE::Softmax)
+		{
+			m_matrix_row_max = new Matrix<T>;
+			m_matrix_row_sum = new Matrix<T>;
 
-			m_single_output = new Matrix<T>(1, m_outputs->GetRow());
-			m_single_output_transposed = new Matrix<T>(m_outputs->GetRow(), 1);
-			m_single_dvalues = new Matrix<T>(m_outputs->GetRow(), 1);
-			m_sample_wise_gradient = new Matrix<T>(m_outputs->GetRow(), 1);
-			m_eyed_output = new Matrix<T>(m_outputs->GetRow(), m_outputs->GetRow());
-			m_jacobian_matrix = new Matrix<T>(m_outputs->GetRow(), m_outputs->GetRow());
+			m_single_output = new Matrix<T>;
+			m_single_output_transposed = new Matrix<T>;
+			m_single_dvalues = new Matrix<T>;
+			m_sample_wise_gradient = new Matrix<T>;
+			m_eyed_output = new Matrix<T>;
+			m_jacobian_matrix = new Matrix<T>;
 		}
 	}
 
 	void SetInputs(Matrix<T>* inputs)
 	{
-		//delete m_inputs;
-		delete m_outputs;
-		delete m_dinputs;
+		if (m_outputs->Cleared() == false)
+		{
+			if (m_inputs != inputs)
+				delete m_inputs;
+
+			m_outputs->Clear();
+			m_dinputs->Clear();
+		}
 		
 		m_inputs_row = inputs->GetRow();
 		m_inputs_column = inputs->GetCol();
 		
-		m_inputs = inputs;
-		m_outputs = new Matrix<T>(m_inputs_column, m_inputs_row);
-		m_dinputs = new Matrix<T>(m_inputs_column, m_inputs_row);
+		if (m_inputs != inputs)
+			m_inputs = inputs;
+
+		m_outputs->InitMatrix(m_inputs_column, m_inputs_row);
+		m_dinputs->InitMatrix(m_inputs_column, m_inputs_row);
 		
-		if (m_activation_type == ACTIVATION_TYPE::Softmax) {
-			delete m_matrix_row_max;
-			delete m_matrix_row_sum;
+		if (m_activation_type == ACTIVATION_TYPE::Softmax)
+		{
+			if (m_matrix_row_max->Cleared() == false)
+			{
+				m_matrix_row_max->Clear();
+				m_matrix_row_sum->Clear();
+
+				m_single_output->Clear();
+				m_single_output_transposed->Clear();
+				m_single_dvalues->Clear();
+				m_sample_wise_gradient->Clear();
+				m_eyed_output->Clear();
+				m_jacobian_matrix->Clear();
+			}
+			
+			m_matrix_row_max->InitMatrix(m_inputs->GetCol(), 1);
+			m_matrix_row_sum->InitMatrix(m_inputs->GetCol(), 1);
 		
-			delete m_single_output;
-			delete m_single_output_transposed;
-			delete m_single_dvalues;
-			delete m_sample_wise_gradient;
-			delete m_eyed_output;
-			delete m_jacobian_matrix;
-		
-			m_matrix_row_max = new Matrix<T>(m_inputs->GetCol(), 1);
-			m_matrix_row_sum = new Matrix<T>(m_inputs->GetCol(), 1);
-		
-			m_single_output = new Matrix<T>(1, m_outputs->GetRow());
-			m_single_output_transposed = new Matrix<T>(m_outputs->GetRow(), 1);
-			m_single_dvalues = new Matrix<T>(m_outputs->GetRow(), 1);
-			m_sample_wise_gradient = new Matrix<T>(m_outputs->GetRow(), 1);
-			m_eyed_output = new Matrix<T>(m_outputs->GetRow(), m_outputs->GetRow());
-			m_jacobian_matrix = new Matrix<T>(m_outputs->GetRow(), m_outputs->GetRow());
+			m_single_output->InitMatrix(1, m_outputs->GetRow());
+			m_single_output_transposed->InitMatrix(m_outputs->GetRow(), 1);
+			m_single_dvalues->InitMatrix(m_outputs->GetRow(), 1);
+			m_sample_wise_gradient->InitMatrix(m_outputs->GetRow(), 1);
+			m_eyed_output->InitMatrix(m_outputs->GetRow(), m_outputs->GetRow());
+			m_jacobian_matrix->InitMatrix(m_outputs->GetRow(), m_outputs->GetRow());
 		}
 	}
 

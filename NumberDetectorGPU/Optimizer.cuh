@@ -193,15 +193,18 @@ private:
 class Adam
 {
 public:
-	Adam(DenseLayer<float>* layer, float learning_rate = 0.001f, float decay = 0.0f, float epsilon = 1e-7f, float beta_1 = 0.9f, float beta_2 = 0.999f)
-		: m_layer(layer)
-		, m_learning_rate(learning_rate)
-		, m_iteration(0)
-		, m_decay(decay)
-		, m_epsilon(epsilon)
-		, m_beta1(beta_1)
-		, m_beta2(beta_2)
+	Adam()
+	{	}
+	void SetInputs(DenseLayer<float>* layer, float learning_rate = 0.02f, float decay = 5e-7, float epsilon = 1e-7f, float beta_1 = 0.9f, float beta_2 = 0.999f)
 	{
+		m_layer = layer;
+		m_learning_rate = learning_rate;
+		m_iteration = 0;
+		m_decay = decay;
+		m_epsilon = epsilon;
+		m_beta1 = beta_1;
+		m_beta2 = beta_2;
+
 		m_weight_momentums = new Matrix<float>(m_layer->GetWeights()->GetCol(), m_layer->GetWeights()->GetRow());
 		m_bias_momentums = new Matrix<float>(1, m_layer->GetBiases()->GetRow());
 
@@ -368,4 +371,43 @@ private:
 	float m_epsilon;
 	float m_beta1;
 	float m_beta2;
+};
+
+class Optimizer
+{
+public:
+	Optimizer(SGD* sgd)
+	{
+		m_sgd = sgd;
+	}
+
+	Optimizer(RMSprop* rmsprop)
+	{
+		m_rmsprop = rmsprop;
+	}
+
+	Optimizer(Adam* adam)
+	{
+		m_adam = adam;
+	}
+
+	SGD* GetSGD()
+	{
+		return m_sgd;
+	}
+
+	RMSprop* GetRMSprop()
+	{
+		return m_rmsprop;
+	}
+
+	Adam* GetAdam()
+	{
+		return m_adam;
+	}
+
+private:
+	SGD* m_sgd;
+	RMSprop* m_rmsprop;
+	Adam* m_adam;
 };

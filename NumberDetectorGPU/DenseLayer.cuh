@@ -6,54 +6,63 @@ template <class T>
 class DenseLayer
 {
 public:
-	DenseLayer(size_t n_inputs, size_t n_outputs, Matrix<T>* inputs, INIT_TYPE init_type = INIT_TYPE::Xavier_Normal,
+	DenseLayer(size_t n_inputs, size_t n_outputs, INIT_TYPE init_type = INIT_TYPE::Xavier_Normal,
 		float weight_regularizer_l1 = 0.0f, float bias_regularizer_l1 = 0.0f, float weight_regularizer_l2 = 5e-4f, float bias_regularizer_l2 = 5e-4f)
 		: m_column(n_inputs)
 		, m_row(n_outputs)
-		, m_inputs_row(inputs->GetRow())
-		, m_inputs_column(inputs->GetCol())
-		, m_inputs(inputs)
 		, m_init_type(init_type)
 		, m_weight_regularizer_l1(weight_regularizer_l1)
 		, m_bias_regularizer_l1(bias_regularizer_l1)
 		, m_weight_regularizer_l2(weight_regularizer_l2)
 		, m_bias_regularizer_l2(bias_regularizer_l2)
 	{
+		// Initialize empty matricies, which will be filled in SetInputs functions
+		m_inputs = new Matrix<T>;
+		m_outputs = new Matrix<T>;
+		m_transposed_inputs = new Matrix<T>;
+		m_dinputs = new Matrix<T>;
+
 		// m_weights is automatically transposed as it has random initialization type
 		m_weights = new Matrix<T>(m_column, m_row, m_init_type);
 		m_biases = new Matrix<T>(1, m_row);
-		m_outputs = new Matrix<T>(m_inputs_column, m_row);
-
-		m_transposed_inputs = new Matrix<T>(m_inputs_row, m_inputs_column);
 		m_transposed_weights = new Matrix<T>(m_row, m_column);
 
-		m_dinputs = new Matrix<T>(m_inputs_column, m_inputs_row);
 		m_dweights = new Matrix<T>(m_column, m_row);
 		m_dbiases = new Matrix<T>(1, m_row);
 
 		// Initialize regularizars derivatives
-		if (m_weight_regularizer_l1 > 0) { m_weights_dl1 = new Matrix<T>(m_column, m_row); }
-		if (m_bias_regularizer_l1 > 0) { m_biases_dl1 = new Matrix<T>(1, m_row); }
-		if (m_weight_regularizer_l2 > 0) { m_weights_dl2 = new Matrix<T>(m_column, m_row); }
-		if (m_bias_regularizer_l2 > 0) { m_biases_dl2 = new Matrix<T>(1, m_row); }
+		if (m_weight_regularizer_l1 > 0)
+			m_weights_dl1 = new Matrix<T>(m_column, m_row); 
+
+		if (m_bias_regularizer_l1 > 0) 
+			m_biases_dl1 = new Matrix<T>(1, m_row);
+
+		if (m_weight_regularizer_l2 > 0) 
+			m_weights_dl2 = new Matrix<T>(m_column, m_row);
+
+		if (m_bias_regularizer_l2 > 0)
+			m_biases_dl2 = new Matrix<T>(1, m_row);
 	}
 
-	void SetInputs(Matrix<T>* inputs, bool delete_input = false)
+	void SetInputs(Matrix<T>* inputs)
 	{
-		if(delete_input) {
-			delete m_inputs; 
-		}
-		delete m_outputs;
-		delete m_transposed_inputs;
-		delete m_dinputs;
-
 		m_inputs_row = inputs->GetRow();
 		m_inputs_column = inputs->GetCol();
 
-		m_inputs = inputs;
-		m_outputs = new Matrix<T>(m_inputs->GetCol(), m_row);
-		m_transposed_inputs = new Matrix<T>(m_inputs_row, m_inputs_column);
-		m_dinputs = new Matrix<T>(m_inputs_column, m_inputs_row);
+		if (m_inputs->Cleared() == false)
+		{
+			//if (m_inputs != inputs)
+			//	delete m_inputs;
+			m_outputs->Clear();
+			m_transposed_inputs->Clear();
+			m_dinputs->Clear();
+		}
+		
+		if(m_inputs != inputs)
+			m_inputs = inputs;
+		m_outputs->InitMatrix(m_inputs->GetCol(), m_row);
+		m_transposed_inputs->InitMatrix(m_inputs_row, m_inputs_column);
+		m_dinputs->InitMatrix(m_inputs_column, m_inputs_row);
 	}
 
 	void Forward()
@@ -192,9 +201,7 @@ public:
 	float GetBiasRegularizerL2()
 	{
 		return m_bias_regularizer_l2;
-	}
-
-	
+	}	
 
 private:
 	size_t m_row;

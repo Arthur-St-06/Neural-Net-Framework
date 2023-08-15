@@ -37,6 +37,7 @@ public:
 	Matrix(size_t column, size_t row, INIT_TYPE init_type = INIT_TYPE::Zero)
 		: m_row(row)
 		, m_column(column)
+		, m_init_type(init_type)
 	{
 		InitVariables();
 
@@ -51,22 +52,22 @@ public:
 			m_data_type = DATA_TYPE::Int;
 		}
 
-		Init(init_type);
+		Init();
 	}
 
 	// Initialize transposed weights
 	// add other initialization methods
-	void Init(INIT_TYPE init_type = INIT_TYPE::Zero)
+	void Init()
 	{
 		std::random_device rd;
 		std::mt19937 gen(rd());
 
 		if (m_data_type == DATA_TYPE::Float)
 		{
-			if (init_type != INIT_TYPE::Zero) {
+			if (m_init_type != INIT_TYPE::Zero) {
 				std::normal_distribution<float> dist;
 
-				switch (init_type)
+				switch (m_init_type)
 				{
 				case INIT_TYPE::Xavier:
 				{
@@ -186,27 +187,75 @@ public:
 		GPUMatrix <<< GRID_SIZE, BLOCK_SIZE >>> (d_matrix, matrix->d_matrix, m_row, m_column);
 	}
 
+	Matrix()
+	{
+		m_cleared = true;
+	}
+
 	~Matrix()
 	{
 
+	}
+
+	void InitMatrix(size_t column, size_t row, INIT_TYPE init_type = INIT_TYPE::Zero)
+	{
+		m_row = row;
+		m_column = column;
+		m_init_type = init_type;
+
+		InitVariables();
+		Init();
 	}
 
 	void InitVariables()
 	{
 		m_matrix = new float[m_row * m_column];
 		d_matrix = new float[m_row * m_column];
-		d_size = m_row * m_column * sizeof(float);
+
 		BLOCK_SIZE_X = 32;
 		BLOCK_SIZE.x = BLOCK_SIZE_X;
 		BLOCK_SIZE.y = BLOCK_SIZE_X;
+
 		GRID_SIZE_X = (m_row + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
 		GRID_SIZE_Y = (m_column + BLOCK_SIZE_X - 1) / BLOCK_SIZE_X;
 		GRID_SIZE.x = GRID_SIZE_X;
 		GRID_SIZE.y = GRID_SIZE_Y;
 
+		d_size = m_row * m_column * sizeof(float);
 		cudaMalloc(&d_matrix, d_size);
 		h_sum_result = new float;
 		cudaMalloc(&sum_result, sizeof(float));
+
+		m_cleared = false;
+	}
+
+	void Clear()
+	{
+		m_row = 0;
+		m_column = 0;
+
+		delete[] m_matrix;
+
+		BLOCK_SIZE_X = 0;
+		BLOCK_SIZE.x = 0;
+		BLOCK_SIZE.y = 0;
+
+		GRID_SIZE_X = 0;
+		GRID_SIZE_Y = 0;
+		GRID_SIZE.x = 0;
+		GRID_SIZE.y = 0;
+
+		d_size = 0;
+		cudaFree(d_matrix);
+
+		delete[] h_sum_result;
+		cudaFree(sum_result);
+
+		m_tmp_max_result = 0;
+
+		m_mean = 0;
+
+		m_cleared = true;
 	}
 
 	void SetMatrix(Matrix<T>* matrix)
@@ -795,10 +844,10 @@ public:
 		return m_column;
 	}
 
-	//float* get_dmatrix()
-	//{
-	//	return d_matrix;
-	//}
+	bool Cleared()
+	{
+		return m_cleared;
+	}
 
 	float* d_matrix;
 
@@ -827,5 +876,8 @@ private:
 	// Use for MEAN function
 	float m_mean;
 
+	INIT_TYPE m_init_type;
 	DATA_TYPE m_data_type;
+
+	bool m_cleared;
 };

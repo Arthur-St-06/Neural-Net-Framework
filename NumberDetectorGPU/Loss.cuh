@@ -5,19 +5,8 @@
 class Loss
 {
 public:
-	Loss(Matrix<float>* predictions, Matrix<float>* ground_truth)
-		: m_predictions(predictions)
-		, m_ground_truth(ground_truth)
-	{
-		m_negative_log_confidencies = new Matrix<float>(1, m_ground_truth->GetRow());
-		m_predictions_indicies = new Matrix<float>(m_ground_truth->GetRow(), 1);
-		m_num_predictions_equal_ground_truth = new Matrix<float>(m_ground_truth->GetRow(), 1);
-
-		if (m_ground_truth->GetCol() == 1)
-		{
-			m_one_hot_encoded_ground_truth = new Matrix<float>(m_ground_truth->GetRow(), m_predictions->GetRow());
-		}
-	}
+	Loss()
+	{	}
 
 	void Calculate()
 	{
@@ -39,25 +28,6 @@ public:
 
 		return predictions;
 	}
-
-	//void CalculateForward()
-	//{
-	//	// Find loss
-	//	ForwardClip();
-	//}
-	//
-	//void CalculateDataLoss()
-	//{
-	//	m_data_loss = m_negative_log_confidencies->Mean();
-	//}
-	//
-	//void CalculateAccuracy()
-	//{
-	//	// Find accuracy
-	//	m_predictions_indicies->RowArgmax(m_predictions);
-	//	m_num_predictions_equal_ground_truth->CompareMatrixAndVector(m_predictions_indicies, m_ground_truth);
-	//	m_data_accuracy = m_num_predictions_equal_ground_truth->ColMean();
-	//}
 
 	float GetLoss()
 	{
@@ -100,21 +70,24 @@ protected:
 class CategoricalCrossentropyLoss : public Loss
 {
 public:
-	CategoricalCrossentropyLoss(Matrix<float>* predictions, Matrix<float>* ground_truth) : Loss(predictions, ground_truth)
-
+	CategoricalCrossentropyLoss() : Loss()
 	{
-		m_clipped_predictions = new Matrix<float>(m_predictions->GetCol(), m_predictions->GetRow());
-		m_correct_confidencies = new Matrix<float>(1, m_ground_truth->GetRow());
+		// Initialize empty matricies, which will be filled in SetInputs functions
+		m_ground_truth = new Matrix<float>;
+		m_negative_log_confidencies = new Matrix<float>;
+		m_predictions_indicies = new Matrix<float>;
+		m_num_predictions_equal_ground_truth = new Matrix<float>;
+		m_one_hot_encoded_ground_truth = new Matrix<float>;
 
-		m_dinputs = new Matrix<float>(m_predictions->GetCol(), m_predictions->GetRow());
+		m_clipped_predictions = new Matrix<float>;
+		m_correct_confidencies = new Matrix<float>;
+		m_dinputs = new Matrix<float>;
 	}
 
 	void Backward()
 	{
 		if (m_ground_truth->GetCol() == 1)
-		{
 			m_one_hot_encoded_ground_truth->OneHotEncode(m_ground_truth);
-		}
 
 		// Calculate gradient
 		m_dinputs->DivideMatrices(m_one_hot_encoded_ground_truth, m_predictions);
@@ -126,30 +99,39 @@ public:
 
 	void SetInputs(Matrix<float>* predictions, Matrix<float>* ground_truth)
 	{
-		if (m_ground_truth != ground_truth)
+		if (m_ground_truth->Cleared() == false)
 		{
-			delete m_ground_truth;
+			//if (m_predictions != predictions)
+			//	delete m_predictions;
+			//if (m_ground_truth != ground_truth)
+			//	delete m_ground_truth;
+			m_negative_log_confidencies->Clear();
+			m_predictions_indicies->Clear();
+			m_num_predictions_equal_ground_truth->Clear();
+			m_one_hot_encoded_ground_truth->Clear();
+
+			m_clipped_predictions->Clear();
+			m_correct_confidencies->Clear();
+			m_dinputs->Clear();
 		}
-		delete m_negative_log_confidencies;
-		delete m_predictions_indicies;
-		delete m_num_predictions_equal_ground_truth;
-		delete m_one_hot_encoded_ground_truth;
 
-		delete m_clipped_predictions;
-		delete m_correct_confidencies;
-		delete m_dinputs;
+		if (m_predictions != predictions)
+			m_predictions = predictions;
 
-		m_predictions = predictions;
-		m_ground_truth = ground_truth;
-		m_negative_log_confidencies = new Matrix<float>(1, m_ground_truth->GetRow());
-		m_predictions_indicies = new Matrix<float>(m_ground_truth->GetRow(), 1);
-		m_num_predictions_equal_ground_truth = new Matrix<float>(m_ground_truth->GetRow(), 1);
-		m_one_hot_encoded_ground_truth = new Matrix<float>(m_ground_truth->GetRow(), m_predictions->GetRow());
+		if (m_ground_truth != ground_truth)
+			m_ground_truth = ground_truth;
 
-		m_clipped_predictions = new Matrix<float>(m_predictions->GetCol(), m_predictions->GetRow());
-		m_correct_confidencies = new Matrix<float>(1, m_ground_truth->GetRow());
+		m_negative_log_confidencies->InitMatrix(1, m_ground_truth->GetRow());
+		m_predictions_indicies->InitMatrix(m_ground_truth->GetRow(), 1);
+		m_num_predictions_equal_ground_truth->InitMatrix(m_ground_truth->GetRow(), 1);
 
-		m_dinputs = new Matrix<float>(m_predictions->GetCol(), m_predictions->GetRow());
+		if (m_ground_truth->GetCol() == 1)
+			m_one_hot_encoded_ground_truth->InitMatrix(m_ground_truth->GetRow(), m_predictions->GetRow());
+
+		m_clipped_predictions->InitMatrix(m_predictions->GetCol(), m_predictions->GetRow());
+		m_correct_confidencies->InitMatrix(1, m_ground_truth->GetRow());
+
+		m_dinputs->InitMatrix(m_predictions->GetCol(), m_predictions->GetRow());
 	}
 
 private:
