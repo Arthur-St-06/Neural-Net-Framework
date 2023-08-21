@@ -115,7 +115,7 @@ public:
 	float RegularizationLoss()
 	{
 		m_regularization_loss = 0.0f;
-		/*
+		
 		if (m_weight_regularizer_l1 > 0)
 		{
 			m_weights_dl1->Abs(m_weights);
@@ -128,17 +128,14 @@ public:
 		}
 		if (m_weight_regularizer_l2 > 0)
 		{
-			
+			m_weights_dl2->PowerMatrix(m_weights, 2);
+			m_regularization_loss = m_weight_regularizer_l2 * m_weights_dl2->Sum(m_weights_dl2);
 		}
 		if (m_bias_regularizer_l2 > 0)
 		{
-			
-		}*/
-
-		m_weights_dl2->PowerMatrix(m_weights, 2);
-		m_regularization_loss = m_weight_regularizer_l2 * m_weights_dl2->Sum(m_weights_dl2);
-		//m_biases_dl2->PowerMatrix(m_biases, 2);
-		//m_regularization_loss += m_bias_regularizer_l2 * m_biases_dl2->Sum(m_biases_dl2);
+			m_biases_dl2->PowerMatrix(m_biases, 2);
+			m_regularization_loss += m_bias_regularizer_l2 * m_biases_dl2->Sum(m_biases_dl2);
+		}	
 
 		return m_regularization_loss;
 	}

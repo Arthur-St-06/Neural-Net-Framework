@@ -19,7 +19,7 @@ class Adam
 public:
 	Adam()
 	{	}
-	void SetInputs(DenseLayer<T>* layer, float learning_rate = 0.02f, float decay = 5e-7f, float epsilon = 1e-7f, float beta_1 = 0.9f, float beta_2 = 0.999f)
+	void SetInputs(DenseLayer<T>* layer, float learning_rate = 0.001f, float decay = 0.0f, float epsilon = 1e-7f, float beta_1 = 0.9f, float beta_2 = 0.999f)
 	{
 		m_layer = layer;
 		m_learning_rate = learning_rate;

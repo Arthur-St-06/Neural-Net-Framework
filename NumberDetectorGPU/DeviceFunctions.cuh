@@ -304,7 +304,12 @@ __global__ void GPUMultByValue(half* d_matrix, half* matrix, float value, int X_
 
 	if (X < X_dim && Y < Y_dim)
 	{
-		d_matrix[Y * X_dim + X] = matrix[Y * X_dim + X] * __float2half(value);
+		if(__half2float(matrix[Y * X_dim + X]) * value > 0.0f && __float2half(__half2float(matrix[Y * X_dim + X]) * value) == __float2half(0.0f))
+			d_matrix[Y * X_dim + X] = __float2half(0.0000001f);
+		else if(__half2float(matrix[Y * X_dim + X]) * value < 0.0f && __float2half(__half2float(matrix[Y * X_dim + X]) * value) == __float2half(0.0f))
+			d_matrix[Y * X_dim + X] = __float2half(-0.0000001f);
+		else
+			d_matrix[Y * X_dim + X] = __float2half(__half2float(matrix[Y * X_dim + X]) * value);
 	}
 }
 
@@ -315,7 +320,10 @@ __global__ void GPUDivideMatrixByValue(half* d_matrix, half* dividend_matrix, fl
 
 	if (X < X_dim && Y < Y_dim)
 	{
-		d_matrix[Y * X_dim + X] = dividend_matrix[Y * X_dim + X] / __float2half(value);
+		if (__half2float(dividend_matrix[Y * X_dim + X]) / value > 0.0f)
+			d_matrix[Y * X_dim + X] = __float2half(__half2float(dividend_matrix[Y * X_dim + X]) / value - 0.0000001f);
+		else
+			d_matrix[Y * X_dim + X] = __float2half(__half2float(dividend_matrix[Y * X_dim + X]) / value + 0.0000001f);
 	}
 }
 

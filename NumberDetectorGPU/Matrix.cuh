@@ -699,19 +699,7 @@ public:
 
 	void MultByValue(Matrix<T>* matrix, float value)
 	{
-		//float* tmpfloat;
-		//cudaMalloc(&tmpfloat, matrix->GetRow() * matrix->GetCol() * sizeof(float));
-		//
-		//halftofloat <<<GRID_SIZE, BLOCK_SIZE >>>(tmpfloat, matrix->d_matrix, m_row, m_column);
-		//
-		//float* tmp1 = new float[matrix->GetRow() * matrix->GetCol()];
-		//cudaMemcpy(tmp1, tmpfloat, matrix->GetRow() * matrix->GetCol() * sizeof(float), cudaMemcpyDeviceToHost);
-
 		GPUMultByValue << < GRID_SIZE, BLOCK_SIZE >> > (d_matrix, matrix->d_matrix, value, m_row, m_column);
-
-		//halftofloat << <GRID_SIZE, BLOCK_SIZE >> > (tmpfloat, d_matrix, m_row, m_column);
-		//
-		//cudaMemcpy(tmp1, tmpfloat, matrix->GetRow() * matrix->GetCol() * sizeof(float), cudaMemcpyDeviceToHost);
 
 		//for (size_t i = 0; i < m_column; i++)
 		//{
@@ -724,7 +712,19 @@ public:
 
 	void DivideMatrixByValue(Matrix<T>* matrix, float value)
 	{
+		//float* tmpfloat;
+		//cudaMalloc(&tmpfloat, matrix->GetRow() * matrix->GetCol() * sizeof(float));
+		//
+		//halftofloat <<<GRID_SIZE, BLOCK_SIZE >>>(tmpfloat, matrix->d_matrix, m_row, m_column);
+		//
+		//float* tmp1 = new float[matrix->GetRow() * matrix->GetCol()];
+		//cudaMemcpy(tmp1, tmpfloat, matrix->GetRow() * matrix->GetCol() * sizeof(float), cudaMemcpyDeviceToHost);
+
 		GPUDivideMatrixByValue << < GRID_SIZE, BLOCK_SIZE >> > (d_matrix, matrix->d_matrix, value, m_row, m_column);
+
+		//halftofloat << <GRID_SIZE, BLOCK_SIZE >> > (tmpfloat, d_matrix, m_row, m_column);
+		//
+		//cudaMemcpy(tmp1, tmpfloat, matrix->GetRow() * matrix->GetCol() * sizeof(float), cudaMemcpyDeviceToHost);
 
 		//for (size_t i = 0; i < m_column; i++)
 		//{

@@ -134,8 +134,8 @@ public:
 
 			if (epoch % print_every == 0)
 			{
-				//reg_loss = 0;
-				//// Do not count last dense layer
+				reg_loss = 0;
+				// Do not count last dense layer
 				//for (size_t i = 0; i < m_layers.size() - 2; i += 2)
 				//{
 				//	reg_loss += m_layers[i]->GetDenseLayer()->RegularizationLoss();
