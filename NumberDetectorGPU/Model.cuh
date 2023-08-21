@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <iostream>
 #include<vector>
 #include <chrono>
 
@@ -12,6 +10,7 @@
 #include "Data.cuh"
 #include "Layer.cuh"
 
+template <class T>
 class Model
 {
 public:
@@ -20,25 +19,25 @@ public:
 		InitTimer();
 	}
 
-	void AddTmp(DenseLayer<float> dense, std::string activation_function_type, std::string loss_type = "none")
+	void AddTmp(DenseLayer<T> dense, std::string activation_function_type, std::string loss_type = "none")
 	{
 		m_activation_function_type = activation_function_type;
 		m_loss_type = loss_type;
 
-		Layer<float>* dense_layer = new Layer<float>(&dense);
+		Layer<T>* dense_layer = new Layer<T>(&dense);
 
 		m_layers.push_back(dense_layer);
 
 		if (m_activation_function_type == "relu")
 		{
-			ActivationFunction<float>* activation_funciton = new ActivationFunction<float>(ACTIVATION_TYPE::Relu);
-			Layer<float>* activation_function_layer = new Layer<float>(activation_funciton);
+			ActivationFunction<T>* activation_funciton = new ActivationFunction<T>(ACTIVATION_TYPE::Relu);
+			Layer<T>* activation_function_layer = new Layer<T>(activation_funciton);
 			m_layers.push_back(activation_function_layer);
 		}
 		else if (m_activation_function_type == "softmax" && m_loss_type == "categorical_crossentropy")
 		{
-			SoftmaxCategoricalCrossentropy<float>* activation_funciton = new SoftmaxCategoricalCrossentropy<float>();
-			Layer<float>* activation_function_layer = new Layer<float>(activation_funciton);
+			SoftmaxCategoricalCrossentropy<T>* activation_funciton = new SoftmaxCategoricalCrossentropy<T>();
+			Layer<T>* activation_function_layer = new Layer<T>(activation_funciton);
 			m_layers.push_back(activation_function_layer);
 		}
 	}
@@ -48,22 +47,22 @@ public:
 		m_activation_function_type = activation_function_type;
 		m_loss_type = loss_type;
 
-		DenseLayer<float>* dense = new DenseLayer<float>(input, output);
+		DenseLayer<T>* dense = new DenseLayer<T>(input, output);
 
-		Layer<float>* dense_layer = new Layer<float>(dense);
+		Layer<T>* dense_layer = new Layer<T>(dense);
 
 		m_layers.push_back(dense_layer);
 
 		if (m_activation_function_type == "relu")
 		{
-			ActivationFunction<float>* activation_funciton = new ActivationFunction<float>(ACTIVATION_TYPE::Relu);
-			Layer<float>* activation_function_layer = new Layer<float>(activation_funciton);
+			ActivationFunction<T>* activation_funciton = new ActivationFunction<T>(ACTIVATION_TYPE::Relu);
+			Layer<T>* activation_function_layer = new Layer<T>(activation_funciton);
 			m_layers.push_back(activation_function_layer);
 		}
 		else if (m_activation_function_type == "softmax" && m_loss_type == "categorical_crossentropy")
 		{
-			SoftmaxCategoricalCrossentropy<float>* activation_funciton = new SoftmaxCategoricalCrossentropy<float>();
-			Layer<float>* activation_function_layer = new Layer<float>(activation_funciton);
+			SoftmaxCategoricalCrossentropy<T>* activation_funciton = new SoftmaxCategoricalCrossentropy<T>();
+			Layer<T>* activation_function_layer = new Layer<T>(activation_funciton);
 			m_layers.push_back(activation_function_layer);
 		}
 	}
@@ -74,7 +73,7 @@ public:
 
 		for (int i = 0; i < m_layers.size() - 1; i += 2)
 		{
-			m_optimizers.push_back(new Optimizer(&sgd));
+			m_optimizers.push_back(new Optimizer<T>(&sgd));
 		}
 	}
 
@@ -84,7 +83,7 @@ public:
 
 		for (int i = 0; i < m_layers.size() - 1; i += 2)
 		{
-			m_optimizers.push_back(new Optimizer(&rmsprop));
+			m_optimizers.push_back(new Optimizer<T>(&rmsprop));
 		}
 	}
 
@@ -96,14 +95,14 @@ public:
 		{
 			if (m_optimizer_type == "adam")
 			{
-				Adam* adam_optimizer = new Adam();
-				Optimizer* optimizer = new Optimizer(adam_optimizer);
+				Adam<T>* adam_optimizer = new Adam<T>();
+				Optimizer<T>* optimizer = new Optimizer<T>(adam_optimizer);
 				m_optimizers.push_back(optimizer);
 			}
 		}
 	}
 
-	void TmpFit(Matrix<float> data_inputs, Matrix<float> data_outputs, size_t epochs, size_t print_every)
+	void TmpFit(Matrix<T> data_inputs, Matrix<T> data_outputs, size_t epochs, size_t print_every)
 	{
 		m_data_inputs = &data_inputs;
 		m_data_outputs = &data_outputs;
@@ -111,14 +110,14 @@ public:
 		SetInputs();
 	}
 
-	void Fit(Matrix<float> data_inputs, Matrix<float> data_outputs, size_t epochs, size_t print_every)
+	void Fit(Matrix<T> data_inputs, Matrix<T> data_outputs, size_t epochs, size_t print_every)
 	{
 		m_data_inputs = &data_inputs;
 		m_data_outputs = &data_outputs;
 
 		SetInputs();
 
-		float reg_loss;
+		float reg_loss = 0.0f;
 
 		StartTimer();
 
@@ -135,12 +134,14 @@ public:
 
 			if (epoch % print_every == 0)
 			{
-				reg_loss = 0;
-				// Do not count last dense layer
-				for (size_t i = 0; i < m_layers.size() - 2; i += 2)
-				{
-					reg_loss += m_layers[i]->GetDenseLayer()->RegularizationLoss();
-				}
+				//reg_loss = 0;
+				//// Do not count last dense layer
+				//for (size_t i = 0; i < m_layers.size() - 2; i += 2)
+				//{
+				//	reg_loss += m_layers[i]->GetDenseLayer()->RegularizationLoss();
+				//}
+
+				//reg_loss = m_layers[2]->GetDenseLayer()->RegularizationLoss();
 
 				std::cout << "Epoch: " << epoch;
 				std::cout << ", loss: " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetLoss();
@@ -167,7 +168,7 @@ public:
 		StopTimer();
 	}
 
-	void Test(Matrix<float> testing_data_inputs, Matrix<float> testing_data_outputs)
+	void Test(Matrix<T> testing_data_inputs, Matrix<T> testing_data_outputs)
 	{
 		m_data_inputs = &testing_data_inputs;
 		m_data_outputs = &testing_data_outputs;
@@ -184,9 +185,9 @@ public:
 
 		std::cout << "Loss: " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetLoss();
 		std::cout << ", accuracy: " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetAccuracy();
-		std::cout << ", predictions: " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[0];
-		std::cout << " " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[1];
-		std::cout << " " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[2] << std::endl;;
+		std::cout << ", predictions: " << __half2float(m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[0]);
+		std::cout << " " << __half2float(m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[1]);
+		std::cout << " " << __half2float(m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[2]) << std::endl;
 	}
 
 	void InitTimer()
@@ -210,11 +211,11 @@ public:
 	}
 
 private:
-	std::vector<Layer<float>*> m_layers;
-	std::vector<Optimizer*> m_optimizers;
+	std::vector<Layer<T>*> m_layers;
+	std::vector<Optimizer<T>*> m_optimizers;
 
-	Matrix<float>* m_data_inputs;
-	Matrix<float>* m_data_outputs;
+	Matrix<T>* m_data_inputs;
+	Matrix<T>* m_data_outputs;
 
 	std::string m_activation_function_type;
 	std::string m_loss_type;

@@ -10,8 +10,8 @@ class SoftmaxCategoricalCrossentropy
 public:
 	SoftmaxCategoricalCrossentropy()
 	{
-		m_softmax = new ActivationFunction<float>(ACTIVATION_TYPE::Softmax);
-		m_loss = new CategoricalCrossentropyLoss();
+		m_softmax = new ActivationFunction<T>(ACTIVATION_TYPE::Softmax);
+		m_loss = new CategoricalCrossentropyLoss<T>();
 
 		m_ground_truth = new Matrix<T>();
 		m_softmax_inputs = new Matrix<T>();
@@ -19,7 +19,7 @@ public:
 		m_dinputs = new Matrix<T>();
 	}
 
-	void SetInputs(Matrix<float>* softmax_inputs, Matrix<float>* ground_truth)
+	void SetInputs(Matrix<T>* softmax_inputs, Matrix<T>* ground_truth)
 	{
 		if (m_softmax_inputs != softmax_inputs)
 		{
@@ -56,7 +56,7 @@ public:
 	void Backward()
 	{
 		m_dinputs->SetMatrix(m_softmax->GetOutputs());
-		m_dinputs->SubstractMatrixFromValueAtMatrixIdx(m_dinputs, m_ground_truth, 1);
+		m_dinputs->SubstractMatrixFromValueAtMatrixIdx(m_ground_truth, 1);
 		m_dinputs->DivideMatrixByValue(m_dinputs, m_dinputs->GetCol());
 	}
 
@@ -67,7 +67,7 @@ public:
 		return m_softmax;
 	}
 
-	CategoricalCrossentropyLoss* GetLoss()
+	CategoricalCrossentropyLoss<T>* GetLoss()
 	{
 		return m_loss;
 	}
@@ -82,7 +82,7 @@ private:
 	Matrix<T>* m_ground_truth;
 
 	ActivationFunction<T>* m_softmax;
-	CategoricalCrossentropyLoss* m_loss;
+	CategoricalCrossentropyLoss<T>* m_loss;
 
 	Matrix<T>* m_dinputs;
 };

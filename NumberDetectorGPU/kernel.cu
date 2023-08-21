@@ -1,18 +1,16 @@
 ﻿#include <stdio.h>
-#include <iostream>
-#include <chrono>
 
 #include "Model.cuh"
 
 int main()
 {
-	Data<float>* data = new Data<float>;
+	Data<half>* data = new Data<half>;
 
-	Model* model = new Model;
+	Model<half>* model = new Model<half>;
 
-	model->Add(2, 64, "relu");
-	model->Add(64, 64, "relu");
-	model->Add(64, 3, "softmax", "categorical_crossentropy");
+	model->Add(2, 8096, "relu");
+	model->Add(8096, 8096, "relu");
+	model->Add(8096, 3, "softmax", "categorical_crossentropy");
 
 	model->Compile("adam");
 	model->Fit(data->GetTrainingDataInputs(), data->GetTrainingDataOutputs(), 1001, 100);

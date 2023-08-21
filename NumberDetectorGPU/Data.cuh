@@ -8,7 +8,8 @@ class Data
 public:
 	Data()
 	{
-		m_training_data_inputs = new Matrix<float>({ {0.0, 0.0},
+		m_training_data_inputs = new Matrix<T>({ 
+{0.0, 0.0},
 {0.0002087553293677047, 0.0009789913892745972},
 {0.0009762641275301576, 0.0017478330992162228},
 {0.002741617150604725, 0.0012253825552761555},
@@ -3010,7 +3011,7 @@ public:
 {-0.9934439659118652, 0.1143200471997261} });
 
 
-		m_training_data_outputs = new Matrix<float>({ {0,
+		m_training_data_outputs = new Matrix<T>({ {0,
 		0,
 		0,
 		0,
@@ -6012,21 +6013,21 @@ public:
 		2
 		} });
 
-		m_validating_data_inputs = new Matrix<float>(
-			{ {0.36595770716667175, 0.5667988061904907} });
+		m_validating_data_inputs = new Matrix<T>(
+			{ {0.3380894660949707, 0.19115716218948364} });
 
-		m_validating_data_outputs = new Matrix<float>(0.0f);
+		m_validating_data_outputs = new Matrix<T>(1.0f);
 	}
 
-	Matrix<float>* GetTrainingDataInputs() { return m_training_data_inputs; }
-	Matrix<float>* GetTrainingDataOutputs() { return m_training_data_outputs; }
-	Matrix<float>* GetValidatingDataInputs() { return m_validating_data_inputs; }
-	Matrix<float>* GetValidatingDataOutputs() { return m_validating_data_outputs; }
+	Matrix<T>* GetTrainingDataInputs() { return m_training_data_inputs; }
+	Matrix<T>* GetTrainingDataOutputs() { return m_training_data_outputs; }
+	Matrix<T>* GetValidatingDataInputs() { return m_validating_data_inputs; }
+	Matrix<T>* GetValidatingDataOutputs() { return m_validating_data_outputs; }
 
 private:
-	Matrix<float>* m_training_data_inputs;
-	Matrix<float>* m_training_data_outputs;
+	Matrix<T>* m_training_data_inputs;
+	Matrix<T>* m_training_data_outputs;
 
-	Matrix<float>* m_validating_data_inputs;
-	Matrix<float>* m_validating_data_outputs;
+	Matrix<T>* m_validating_data_inputs;
+	Matrix<T>* m_validating_data_outputs;
 };

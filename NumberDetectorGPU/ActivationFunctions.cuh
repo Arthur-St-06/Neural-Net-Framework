@@ -133,7 +133,14 @@ public:
 	void BackwardReLu(Matrix<T>* dvalues)
 	{
 		m_dinputs->SetMatrix(dvalues);
+
+		//float* tmp = new float[dvalues->GetRow() * dvalues->GetRow()];
+		//cudaMemcpy(tmp, dvalues->d_matrix, dvalues->GetRow() * dvalues->GetRow() * sizeof(float), cudaMemcpyDeviceToHost);
+
 		m_dinputs->SetZeroIfMatrixValueIsNegative(m_inputs);
+
+		//float* tmp1 = new float[m_inputs->GetRow() * m_inputs->GetRow()];
+		//cudaMemcpy(tmp1, m_inputs->d_matrix, m_inputs->GetRow() * m_inputs->GetRow() * sizeof(float), cudaMemcpyDeviceToHost);
 	}
 
 	void BackwardSigmoid(Matrix<T>* dvalues)

@@ -1,5 +1,6 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
+#include <cublas_v2.h>
 
 #include <iostream>
 #include <vector>
@@ -8,7 +9,25 @@
 #include <math.h>
 #include <stdint.h>
 
-__global__ void GPUMatrix(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void floattohalf(const float* src, __half* dest, int X_dim) {
+	int X = blockIdx.x * blockDim.x + threadIdx.x;
+	//int Y = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if (X < X_dim) {
+		dest[X] = __float2half(src[X]);
+	}
+}
+
+__global__ void halftofloat(float* dest, __half* src, int X_dim, int Y_dim) {
+	int X = blockIdx.x * blockDim.x + threadIdx.x;
+	int Y = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if (X < X_dim && Y < Y_dim) {
+		dest[Y * X_dim + X] = __half2float(src[Y * X_dim + X]);
+	}
+}
+
+__global__ void GPUMatrix(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -19,7 +38,7 @@ __global__ void GPUMatrix(float* d_matrix, float* matrix, int X_dim, int Y_dim)
 	}
 }
 
-__global__ void GPUTransposedMatrix(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPUTransposedMatrix(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -30,7 +49,7 @@ __global__ void GPUTransposedMatrix(float* d_matrix, float* matrix, int X_dim, i
 	}
 }
 
-__global__ void GPUSetRowMatrixToRow(float* d_matrix, float* matrix, int X_dim, int Y_dim, size_t row_to_get, size_t row_to_set)
+__global__ void GPUSetRowMatrixToRow(half* d_matrix, half* matrix, int X_dim, int Y_dim, size_t row_to_get, size_t row_to_set)
 {
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -40,7 +59,7 @@ __global__ void GPUSetRowMatrixToRow(float* d_matrix, float* matrix, int X_dim, 
 	}
 }
 
-__global__ void GPUSetRowMatrixToColumn(float* d_matrix, float* matrix, int X_dim, int Y_dim, size_t row_to_get, size_t col_to_set)
+__global__ void GPUSetRowMatrixToColumn(half* d_matrix, half* matrix, int X_dim, int Y_dim, size_t row_to_get, size_t col_to_set)
 {
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -50,7 +69,7 @@ __global__ void GPUSetRowMatrixToColumn(float* d_matrix, float* matrix, int X_di
 	}
 }
 
-__global__ void GPUSetColMatrixToRow(float* d_matrix, float* matrix, int X_dim, int Y_dim, size_t col_to_get, size_t row_to_set)
+__global__ void GPUSetColMatrixToRow(half* d_matrix, half* matrix, int X_dim, int Y_dim, size_t col_to_get, size_t row_to_set)
 {
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -87,7 +106,7 @@ __device__ float DeviceMin(float a, float b)
 	return a < b ? a : b;
 }
 
-__global__ void GPUMax(float* d_matrix, float* matrix, float min, int X_dim, int Y_dim)
+__global__ void GPUMax(half* d_matrix, half* matrix, float min, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -98,7 +117,7 @@ __global__ void GPUMax(float* d_matrix, float* matrix, float min, int X_dim, int
 	}
 }
 
-__global__ void GPURowMax(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPURowMax(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -115,13 +134,13 @@ __global__ void GPURowMax(float* d_matrix, float* matrix, int X_dim, int Y_dim)
 	}
 }
 
-__global__ void GPURowArgmax(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPURowArgmax(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if (Y < Y_dim)
 	{
-		float max_num = matrix[Y * X_dim];
+		half max_num = matrix[Y * X_dim];
 		int max_num_idx = 0;
 
 		for (int i = 1; i < X_dim; i++)
@@ -137,7 +156,7 @@ __global__ void GPURowArgmax(float* d_matrix, float* matrix, int X_dim, int Y_di
 	}
 }
 
-__global__ void GPUMatrixSum(float* matrix, float* result, int X_dim, int Y_dim)
+__global__ void GPUMatrixSum(half* matrix, float* result, int X_dim, int Y_dim)
 {
 	result[0] = 0.0f;
 
@@ -145,12 +164,12 @@ __global__ void GPUMatrixSum(float* matrix, float* result, int X_dim, int Y_dim)
 	{
 		for (size_t j = 0; j < X_dim; j++)
 		{
-			result[0] += matrix[i * X_dim + j];
+			result[0] += __half2float(matrix[i * X_dim + j]);
 		}
 	}
 }
 
-__global__ void GPURowSum(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPURowSum(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -165,7 +184,7 @@ __global__ void GPURowSum(float* d_matrix, float* matrix, int X_dim, int Y_dim)
 	}
 }
 
-__global__ void GPUColSum(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPUColSum(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -180,7 +199,7 @@ __global__ void GPUColSum(float* d_matrix, float* matrix, int X_dim, int Y_dim)
 	}
 }
 
-__global__ void GPUAddMatrix(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPUAddMatrix(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -191,7 +210,7 @@ __global__ void GPUAddMatrix(float* d_matrix, float* matrix, int X_dim, int Y_di
 	}
 }
 
-__global__ void GPUAddMatricies(float* d_matrix, float* matrix1, float* matrix2, int X_dim, int Y_dim)
+__global__ void GPUAddMatricies(half* d_matrix, half* matrix1, half* matrix2, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -202,18 +221,18 @@ __global__ void GPUAddMatricies(float* d_matrix, float* matrix1, float* matrix2,
 	}
 }
 
-__global__ void GPUAddValue(float* d_matrix, float* matrix, float value, int X_dim, int Y_dim)
+__global__ void GPUAddValue(half* d_matrix, half* matrix, float value, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if (X < X_dim && Y < Y_dim)
 	{
-		d_matrix[Y * X_dim + X] = matrix[Y * X_dim + X] + value;
+		d_matrix[Y * X_dim + X] = matrix[Y * X_dim + X] + __float2half(value);
 	}
 }
 
-__global__ void GPUAddSingleRow(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPUAddSingleRow(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -224,7 +243,7 @@ __global__ void GPUAddSingleRow(float* d_matrix, float* matrix, int X_dim, int Y
 	}
 }
 
-__global__ void GPUSubstractMatricies(float* d_matrix, float* minuend_matrix, float* subtrachend_matrix, int X_dim, int Y_dim)
+__global__ void GPUSubstractMatricies(half* d_matrix, half* minuend_matrix, half* subtrachend_matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -235,7 +254,7 @@ __global__ void GPUSubstractMatricies(float* d_matrix, float* minuend_matrix, fl
 	}
 }
 
-__global__ void GPUSubstractMatrixFromRowValues(float* d_matrix, float* minuend_matrix, float* subtrachend_matrix, int X_dim, int Y_dim)
+__global__ void GPUSubstractMatrixFromRowValues(half* d_matrix, half* minuend_matrix, half* subtrachend_matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -246,18 +265,18 @@ __global__ void GPUSubstractMatrixFromRowValues(float* d_matrix, float* minuend_
 	}
 }
 
-__global__ void GPUSubstractValueFromMatrix(float* d_matrix, float* matrix, float value, int X_dim, int Y_dim)
+__global__ void GPUSubstractValueFromMatrix(half* d_matrix, half* matrix, float value, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if (X < X_dim && Y < Y_dim)
 	{
-		d_matrix[Y * X_dim + X] = value - matrix[Y * X_dim + X];
+		d_matrix[Y * X_dim + X] = __float2half(value) - matrix[Y * X_dim + X];
 	}
 }
 
-__global__ void GPUSubstractMatrixFromValueAtMatrixIdx(float* d_matrix, float* idx_matrix, float value, int X_dim, int Y_dim)
+__global__ void GPUSubstractMatrixFromValueAtMatrixIdx(half* d_matrix, half* idx_matrix, float value, int X_dim, int Y_dim)
 {
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -267,7 +286,7 @@ __global__ void GPUSubstractMatrixFromValueAtMatrixIdx(float* d_matrix, float* i
 	}
 }
 
-__global__ void GPUMatriciesMult(float* d_matrix, float* multiplier_matrix, float* multiplicand_matrix, int X_dim, int Y_dim)
+__global__ void GPUMatriciesMult(half* d_matrix, half* multiplier_matrix, half* multiplicand_matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -278,29 +297,29 @@ __global__ void GPUMatriciesMult(float* d_matrix, float* multiplier_matrix, floa
 	}
 }
 
-__global__ void GPUMultByValue(float* d_matrix, float* matrix, float value, int X_dim, int Y_dim)
+__global__ void GPUMultByValue(half* d_matrix, half* matrix, float value, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if (X < X_dim && Y < Y_dim)
 	{
-		d_matrix[Y * X_dim + X] = matrix[Y * X_dim + X] * value;
+		d_matrix[Y * X_dim + X] = matrix[Y * X_dim + X] * __float2half(value);
 	}
 }
 
-__global__ void GPUDivideMatrixByValue(float* d_matrix, float* dividend_matrix, float value, int X_dim, int Y_dim)
+__global__ void GPUDivideMatrixByValue(half* d_matrix, half* dividend_matrix, float value, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if (X < X_dim && Y < Y_dim)
 	{
-		d_matrix[Y * X_dim + X] = dividend_matrix[Y * X_dim + X] / value;
+		d_matrix[Y * X_dim + X] = dividend_matrix[Y * X_dim + X] / __float2half(value);
 	}
 }
 
-__global__ void GPUDivideMatrixByRow(float* d_matrix, float* dividend_matrix, float* divisor_matrix, int X_dim, int Y_dim)
+__global__ void GPUDivideMatrixByRow(half* d_matrix, half* dividend_matrix, half* divisor_matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -311,7 +330,7 @@ __global__ void GPUDivideMatrixByRow(float* d_matrix, float* dividend_matrix, fl
 	}
 }
 
-__global__ void GPUDivideMatrices(float* d_matrix, float* dividend_matrix, float* divisor_matrix, int X_dim, int Y_dim)
+__global__ void GPUDivideMatrices(half* d_matrix, half* dividend_matrix, half* divisor_matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -322,51 +341,51 @@ __global__ void GPUDivideMatrices(float* d_matrix, float* dividend_matrix, float
 	}
 }
 
-__global__ void GPUSqrtMatrix(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPUSqrtMatrix(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if (X < X_dim && Y < Y_dim)
 	{
-		d_matrix[Y * X_dim + X] = std::sqrt(matrix[Y * X_dim + X]);
+		d_matrix[Y * X_dim + X] = sqrtf(matrix[Y * X_dim + X]) - 0.0001f;
 	}
 }
 
-__global__ void GPUPowerMatrix(float* d_matrix, float* matrix, float exponent, int X_dim, int Y_dim)
+__global__ void GPUPowerMatrix(half* d_matrix, half* matrix, float exponent, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if (X < X_dim && Y < Y_dim)
 	{
-		d_matrix[Y * X_dim + X] = std::pow(matrix[Y * X_dim + X], exponent);
+		d_matrix[Y * X_dim + X] = powf(matrix[Y * X_dim + X], exponent);
 	}
 }
 
-__global__ void GPUSetZeroIfMatrixValueIsNegative(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPUSetZeroIfMatrixValueIsNegative(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
-	if (X < X_dim && Y < Y_dim && matrix[Y * X_dim + X] < 0)
+	if (X < X_dim && Y < Y_dim && __hlt(matrix[Y * X_dim + X], __float2half(0.0f)))
 	{
-		d_matrix[Y * X_dim + X] = 0;
+		d_matrix[Y * X_dim + X] = 0.0f;
 	}
 }
 
-__global__ void GPUExp(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPUExp(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if (X < X_dim && Y < Y_dim)
 	{
-		d_matrix[Y * X_dim + X] = std::pow(2.71828182845904523536, matrix[Y * X_dim + X]);
+		d_matrix[Y * X_dim + X] = powf(2.71828182845904523536, matrix[Y * X_dim + X]);
 	}
 }
 
-__global__ void GPUClip(float* d_matrix, float* matrix, float min, float max, int X_dim, int Y_dim)
+__global__ void GPUClip(half* d_matrix, half* matrix, float min, float max, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -377,17 +396,17 @@ __global__ void GPUClip(float* d_matrix, float* matrix, float min, float max, in
 	}
 }
 
-__global__ void GPUGetValuesAccordingToMatrices(float* d_matrix, float* values_matrix, float* idxs_matrix, int X_dim, int Y_dim)
+__global__ void GPUGetValuesAccordingToMatrices(half* d_matrix, half* values_matrix, half* idxs_matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 
 	if (X < X_dim)
 	{
-		d_matrix[X] = values_matrix[X * Y_dim + __float2int_rz(idxs_matrix[X])];
+		d_matrix[X] = values_matrix[X * Y_dim + (int)(idxs_matrix[X])];
 	}
 }
 
-__global__ void GPUNegativeLog(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPUNegativeLog(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -398,18 +417,18 @@ __global__ void GPUNegativeLog(float* d_matrix, float* matrix, int X_dim, int Y_
 	}
 }
 
-__global__ void GPUAbs(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPUAbs(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int X = blockIdx.x * blockDim.x + threadIdx.x;
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
 	if (X < X_dim && Y < Y_dim)
 	{
-		d_matrix[Y * X_dim + X] = std::abs(matrix[Y * X_dim + X]);
+		d_matrix[Y * X_dim + X] = fabs(matrix[Y * X_dim + X]);
 	}
 }
 
-__global__ void GPUCompareMatrixAndVector(float* d_matrix, float* matrix, float* compare_matrix, int X_dim, int Y_dim)
+__global__ void GPUCompareMatrixAndVector(half* d_matrix, half* matrix, half* compare_matrix, int X_dim, int Y_dim)
 {
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -426,7 +445,7 @@ __global__ void GPUCompareMatrixAndVector(float* d_matrix, float* matrix, float*
 	}
 }
 
-__global__ void GPUOneHotEncode(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPUOneHotEncode(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -436,7 +455,7 @@ __global__ void GPUOneHotEncode(float* d_matrix, float* matrix, int X_dim, int Y
 	}
 }
 
-__global__ void GPUEyeVector(float* d_matrix, float* matrix, int X_dim, int Y_dim)
+__global__ void GPUEyeVector(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -446,25 +465,25 @@ __global__ void GPUEyeVector(float* d_matrix, float* matrix, int X_dim, int Y_di
 	}
 }
 
-__global__ void GPUMean(float* d_matrix, float* mean_result, int X_dim)
+__global__ void GPUMean(half* d_matrix, float* mean_result, int X_dim)
 {
 	mean_result[0] = 0;
 
 	for (size_t i = 0; i < X_dim; i++)
 	{
-		mean_result[0] += d_matrix[i];
+		mean_result[0] += __half2float(d_matrix[i]);
 	}
 
 	mean_result[0] /= X_dim;
 }
 
-__global__ void GPUColMean(float* d_matrix, float* mean_result, int Y_dim)
+__global__ void GPUColMean(half* d_matrix, float* mean_result, int Y_dim)
 {
 	mean_result[0] = 0;
 
 	for (size_t i = 0; i < Y_dim; i++)
 	{
-		mean_result[0] += d_matrix[i];
+		mean_result[0] += __half2float(d_matrix[i]);
 	}
 
 	mean_result[0] /= Y_dim;
