@@ -31,13 +31,7 @@ public:
 		}
 
 		if (m_ground_truth != ground_truth)
-		{
-			if (m_ground_truth->Cleared() == false)
-			{
-				//delete m_ground_truth;
-			}
 			m_ground_truth = ground_truth;
-		}
 
 		m_softmax->SetInputs(m_softmax_inputs);
 		m_loss->SetInputs(m_softmax->GetOutputs(), m_ground_truth);

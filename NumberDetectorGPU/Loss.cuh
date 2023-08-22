@@ -15,8 +15,8 @@ public:
 		m_data_loss = m_negative_log_confidencies->Mean();
 
 		// Find accuracy
-		m_predictions_indicies->RowArgmax(m_predictions);
-		m_num_predictions_equal_ground_truth->CompareMatrixAndVector(m_predictions_indicies, m_ground_truth);
+		m_num_predictions_equal_ground_truth->RowArgmax(m_predictions);
+		m_num_predictions_equal_ground_truth->CompareMatrixAndVector(m_num_predictions_equal_ground_truth, m_ground_truth);
 		m_data_accuracy = m_num_predictions_equal_ground_truth->ColMean();
 	}
 
@@ -24,7 +24,7 @@ public:
 	{
 		half* predictions = new half[3];
 
-		cudaMemcpy(predictions, m_predictions->d_matrix, 3 * sizeof(half), cudaMemcpyDeviceToHost);
+		cudaMemcpy(predictions, m_predictions->GetMatrix(), 3 * sizeof(half), cudaMemcpyDeviceToHost);
 
 		return predictions;
 	}
@@ -58,7 +58,6 @@ protected:
 	float m_data_loss;
 
 	// Accuracy
-	Matrix<half>* m_predictions_indicies;
 	Matrix<half>* m_num_predictions_equal_ground_truth;
 	float m_data_accuracy;
 
@@ -75,12 +74,10 @@ public:
 		// Initialize empty matricies, which will be filled in SetInputs functions
 		m_ground_truth = new Matrix<T>;
 		m_negative_log_confidencies = new Matrix<T>;
-		m_predictions_indicies = new Matrix<T>;
 		m_num_predictions_equal_ground_truth = new Matrix<T>;
 		m_one_hot_encoded_ground_truth = new Matrix<T>;
 
 		m_clipped_predictions = new Matrix<T>;
-		m_correct_confidencies = new Matrix<T>;
 		m_dinputs = new Matrix<T>;
 	}
 
@@ -102,12 +99,10 @@ public:
 		if (m_ground_truth->Cleared() == false)
 		{
 			m_negative_log_confidencies->Clear();
-			m_predictions_indicies->Clear();
 			m_num_predictions_equal_ground_truth->Clear();
 			m_one_hot_encoded_ground_truth->Clear();
 
 			m_clipped_predictions->Clear();
-			m_correct_confidencies->Clear();
 			m_dinputs->Clear();
 		}
 
@@ -118,26 +113,22 @@ public:
 			m_ground_truth = ground_truth;
 
 		m_negative_log_confidencies->InitMatrix(1, m_ground_truth->GetRow());
-		m_predictions_indicies->InitMatrix(m_ground_truth->GetRow(), 1);
 		m_num_predictions_equal_ground_truth->InitMatrix(m_ground_truth->GetRow(), 1);
 
 		if (m_ground_truth->GetCol() == 1)
 			m_one_hot_encoded_ground_truth->InitMatrix(m_ground_truth->GetRow(), m_predictions->GetRow());
 
 		m_clipped_predictions->InitMatrix(m_predictions->GetCol(), m_predictions->GetRow());
-		m_correct_confidencies->InitMatrix(1, m_ground_truth->GetRow());
-
 		m_dinputs->InitMatrix(m_predictions->GetCol(), m_predictions->GetRow());
 	}
 
 private:
 	Matrix<T>* m_clipped_predictions;
-	Matrix<T>* m_correct_confidencies;
 
 	void Forward()
 	{
 		m_clipped_predictions->Clip(m_predictions, 1e-7, 1 - 1e-7);
-		m_correct_confidencies->GetValuesAccordingToMatrices(m_clipped_predictions, m_ground_truth);
-		m_negative_log_confidencies->NegativeLog(m_correct_confidencies);
+		m_negative_log_confidencies->GetValuesAccordingToMatrices(m_clipped_predictions, m_ground_truth);
+		m_negative_log_confidencies->NegativeLog(m_negative_log_confidencies);
 	}
 };

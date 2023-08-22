@@ -53,6 +53,8 @@ public:
 		std::random_device rd;
 		std::mt19937 gen(rd());
 
+		m_matrix = new T[m_row * m_column];
+
 		if (m_data_type == DATA_TYPE::Float)
 		{
 			if (m_init_type != INIT_TYPE::Zero) {
@@ -161,6 +163,8 @@ public:
 				//}
 			}
 		}
+
+		delete[] m_matrix;
 	}
 
 	// Create Matrix with set values
@@ -295,7 +299,6 @@ public:
 	{
 		InitDataType();
 
-		m_matrix = new T[m_row * m_column];
 		d_matrix = new T[m_row * m_column];
 
 		BLOCK_SIZE_X = 32;
@@ -311,12 +314,6 @@ public:
 		cudaMalloc(&d_matrix, d_size);
 		h_sum_result = new float;
 		cudaMalloc(&sum_result, sizeof(float));
-
-		a_size = m_row * m_column * sizeof(half);
-		cudaMalloc(&a_matrix, a_size);
-
-		b_size = m_row * m_column * sizeof(half);
-		cudaMalloc(&b_matrix, b_size);
 
 		m_cleared = false;
 
@@ -348,8 +345,6 @@ public:
 		m_row = 0;
 		m_column = 0;
 
-		delete[] m_matrix;
-
 		BLOCK_SIZE_X = 0;
 		BLOCK_SIZE.x = 0;
 		BLOCK_SIZE.y = 0;
@@ -364,10 +359,6 @@ public:
 
 		delete[] h_sum_result;
 		cudaFree(sum_result);
-
-		m_tmp_max_result = 0;
-
-		m_mean = 0;
 
 		m_cleared = true;
 
@@ -431,20 +422,50 @@ public:
 		//}
 	}
 
-	void Dot(Matrix<T>* a, Matrix<T>* b)
+	void Dot(Matrix<T>* a, Matrix<T>* b, std::string op = "N")
 	{
 		//GPUDot <<< GRID_SIZE, BLOCK_SIZE >>> (d_matrix, a->d_matrix, b->d_matrix, a->GetRow(), a->GetCol(), b->GetRow());
 
-		cublasGemmEx(
-			handle, CUBLAS_OP_N, CUBLAS_OP_N,
-			b->GetRow(), a->GetCol(), b->GetCol(),
-			&alpha,
-			b->d_matrix, CUDA_R_16F, b->GetRow(),
-			a->d_matrix, CUDA_R_16F, a->GetRow(),
-			&beta,
-			d_matrix, CUDA_R_16F, b->GetRow(),
-			CUDA_R_32F, CUBLAS_GEMM_DEFAULT
-		);
+		if (op == "N")
+		{
+			cublasGemmEx(
+				handle, CUBLAS_OP_N, CUBLAS_OP_N,
+				b->GetRow(), a->GetCol(), b->GetCol(),
+				&alpha,
+				b->d_matrix, CUDA_R_16F, b->GetRow(),
+				a->d_matrix, CUDA_R_16F, a->GetRow(),
+				&beta,
+				d_matrix, CUDA_R_16F, b->GetRow(),
+				CUDA_R_32F, CUBLAS_GEMM_DEFAULT
+			);
+		}
+		else if(op == "T")
+		{
+			cublasGemmEx(
+				handle, CUBLAS_OP_N, CUBLAS_OP_T,
+				b->GetRow(), a->GetRow(), b->GetCol(),
+				&alpha,
+				b->d_matrix, CUDA_R_16F, b->GetRow(),
+				a->d_matrix, CUDA_R_16F, a->GetRow(),
+				&beta,
+				d_matrix, CUDA_R_16F, b->GetRow(),
+				CUDA_R_32F, CUBLAS_GEMM_DEFAULT
+			);
+		}
+		else
+		{
+			cublasGemmEx(
+				handle, CUBLAS_OP_T, CUBLAS_OP_N,  // Transpose matrix b
+				b->GetCol(), a->GetCol(), b->GetRow(),  // Notice the change in dimensions
+				&alpha,
+				b->d_matrix, CUDA_R_16F, b->GetRow(),  // Transposed matrix b
+				a->d_matrix, CUDA_R_16F, a->GetRow(),
+				&beta,
+				d_matrix, CUDA_R_16F, b->GetCol(),
+				CUDA_R_32F, CUBLAS_GEMM_DEFAULT
+			);
+		}
+		
 		
 		//cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N,
 		//	b->GetRow(), a->GetCol(), b->GetCol(),
@@ -981,19 +1002,17 @@ public:
 		return m_cleared;
 	}
 
-	T* d_matrix;
+	T* GetMatrix()
+	{
+		return d_matrix;
+	}
 
 private:
 	size_t m_row;
 	size_t m_column;
 
+	T* d_matrix;
 	T* m_matrix;
-
-	half* a_matrix;
-	half* b_matrix;
-
-	size_t a_size;
-	size_t b_size;
 
 	int BLOCK_SIZE_X;
 	int GRID_SIZE_X;
@@ -1007,12 +1026,6 @@ private:
 	// Use for SUM
 	float* sum_result;
 	float* h_sum_result;
-
-	// Use for MAX and CLIP functions
-	T m_tmp_max_result;
-
-	// Use for MEAN function
-	T m_mean;
 
 	INIT_TYPE m_init_type;
 	DATA_TYPE m_data_type;

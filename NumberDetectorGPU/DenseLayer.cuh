@@ -19,13 +19,11 @@ public:
 		// Initialize empty matricies, which will be filled in SetInputs functions
 		m_inputs = new Matrix<T>;
 		m_outputs = new Matrix<T>;
-		m_transposed_inputs = new Matrix<T>;
 		m_dinputs = new Matrix<T>;
 
 		// m_weights is automatically transposed as it has random initialization type
 		m_weights = new Matrix<T>(m_column, m_row, m_init_type);
 		m_biases = new Matrix<T>(1, m_row);
-		m_transposed_weights = new Matrix<T>(m_row, m_column);
 
 		m_dweights = new Matrix<T>(m_column, m_row);
 		m_dbiases = new Matrix<T>(1, m_row);
@@ -51,17 +49,13 @@ public:
 
 		if (m_inputs->Cleared() == false)
 		{
-			//if (m_inputs != inputs)
-			//	delete m_inputs;
 			m_outputs->Clear();
-			m_transposed_inputs->Clear();
 			m_dinputs->Clear();
 		}
 		
 		if(m_inputs != inputs)
 			m_inputs = inputs;
 		m_outputs->InitMatrix(m_inputs->GetCol(), m_row);
-		m_transposed_inputs->InitMatrix(m_inputs_row, m_inputs_column);
 		m_dinputs->InitMatrix(m_inputs_column, m_inputs_row);
 	}
 
@@ -76,9 +70,9 @@ public:
 	{
 		// Gradients on parameters
 
-		m_transposed_inputs->SetTransposedMatrix(m_inputs);
+		//m_transposed_inputs->SetTransposedMatrix(m_inputs);
 
-		m_dweights->Dot(m_transposed_inputs, dvalues);
+		m_dweights->Dot(m_inputs, dvalues, "T");
 
 		m_dbiases->ColSum(dvalues);
 
@@ -105,11 +99,7 @@ public:
 		}
 
 		// Gradient on inputs
-		m_transposed_weights->SetTransposedMatrix(m_weights);
-
-		m_dinputs->Dot(dvalues, m_transposed_weights);
-
-		//cudaMemcpy(result, m_weights->d_matrix, 512, cudaMemcpyDeviceToHost);
+		m_dinputs->Dot(dvalues, m_weights, "T2");
 	}
 
 	float RegularizationLoss()
@@ -201,9 +191,6 @@ private:
 	Matrix<T>* m_weights;
 	Matrix<T>* m_biases;
 	Matrix<T>* m_outputs;
-
-	Matrix<T>* m_transposed_inputs;
-	Matrix<T>* m_transposed_weights;
 
 	// Backpropagation
 	Matrix<T>* m_dinputs;
