@@ -11,7 +11,8 @@
 
 #include "DeviceFunctions.cuh"
 
-#include "cublas_v2.h"
+#include <cublas_v2.h>
+#include <cuda_fp16.h>
 
 enum class DATA_TYPE
 {
@@ -187,6 +188,8 @@ public:
 			}
 
 			cudaMemcpy(d_matrix, pointer_matrix, d_size, cudaMemcpyHostToDevice);
+
+			delete[] pointer_matrix;
 		}
 		else if (m_data_type == DATA_TYPE::Half)
 		{
@@ -201,7 +204,30 @@ public:
 			}
 
 			cudaMemcpy(d_matrix, pointer_matrix, d_size, cudaMemcpyHostToDevice);
+
+			delete[] pointer_matrix;
 		}
+	}
+
+	Matrix(std::vector<std::vector<float>>* matrix)
+	{
+		m_row = matrix[0][0].size();
+		m_column = matrix[0].size();
+		InitVariables();
+
+		half* pointer_matrix = new half[m_row * m_column];
+
+		for (int i = 0; i < m_column; i++)
+		{
+			for (int j = 0; j < m_row; j++)
+			{
+				pointer_matrix[i * m_row + j] = __float2half(matrix[0][i][j]);
+			}
+		}
+
+		cudaMemcpy(d_matrix, pointer_matrix, d_size, cudaMemcpyHostToDevice);
+
+		delete[] pointer_matrix;
 	}
 
 	Matrix(std::vector<T> matrix)
@@ -220,6 +246,8 @@ public:
 			}
 
 			cudaMemcpy(d_matrix, pointer_matrix, d_size, cudaMemcpyHostToDevice);
+
+			delete[] pointer_matrix;
 		}
 		else if (m_data_type == DATA_TYPE::Half)
 		{
@@ -231,6 +259,8 @@ public:
 			}
 
 			cudaMemcpy(d_matrix, pointer_matrix, d_size, cudaMemcpyHostToDevice);
+
+			delete[] pointer_matrix;
 		}
 	}
 
@@ -247,6 +277,8 @@ public:
 			pointer_matrix[0] = matrix;
 
 			cudaMemcpy(d_matrix, pointer_matrix, d_size, cudaMemcpyHostToDevice);
+
+			delete[] pointer_matrix;
 		}
 		else if (m_data_type == DATA_TYPE::Half)
 		{
@@ -255,7 +287,14 @@ public:
 			pointer_matrix[0] = matrix;
 
 			cudaMemcpy(d_matrix, pointer_matrix, d_size, cudaMemcpyHostToDevice);
+
+			delete[] pointer_matrix;
 		}
+	}
+
+	Matrix(float* matrix)
+	{
+
 	}
 
 	Matrix(Matrix<T>* matrix)
@@ -312,6 +351,7 @@ public:
 
 		d_size = m_row * m_column * sizeof(T);
 		cudaMalloc(&d_matrix, d_size);
+		
 		h_sum_result = new float;
 		cudaMalloc(&sum_result, sizeof(float));
 
@@ -428,41 +468,38 @@ public:
 
 		if (op == "N")
 		{
-			cublasGemmEx(
+			cublasHgemm(
 				handle, CUBLAS_OP_N, CUBLAS_OP_N,
 				b->GetRow(), a->GetCol(), b->GetCol(),
 				&alpha,
-				b->d_matrix, CUDA_R_16F, b->GetRow(),
-				a->d_matrix, CUDA_R_16F, a->GetRow(),
+				b->d_matrix, b->GetRow(),
+				a->d_matrix, a->GetRow(),
 				&beta,
-				d_matrix, CUDA_R_16F, b->GetRow(),
-				CUDA_R_32F, CUBLAS_GEMM_DEFAULT
+				d_matrix, b->GetRow()
 			);
 		}
 		else if(op == "T")
 		{
-			cublasGemmEx(
+			cublasHgemm(
 				handle, CUBLAS_OP_N, CUBLAS_OP_T,
 				b->GetRow(), a->GetRow(), b->GetCol(),
 				&alpha,
-				b->d_matrix, CUDA_R_16F, b->GetRow(),
-				a->d_matrix, CUDA_R_16F, a->GetRow(),
+				b->d_matrix, b->GetRow(),
+				a->d_matrix, a->GetRow(),
 				&beta,
-				d_matrix, CUDA_R_16F, b->GetRow(),
-				CUDA_R_32F, CUBLAS_GEMM_DEFAULT
+				d_matrix, b->GetRow()
 			);
 		}
 		else
 		{
-			cublasGemmEx(
-				handle, CUBLAS_OP_T, CUBLAS_OP_N,  // Transpose matrix b
-				b->GetCol(), a->GetCol(), b->GetRow(),  // Notice the change in dimensions
+			cublasHgemm(
+				handle, CUBLAS_OP_T, CUBLAS_OP_N,
+				b->GetCol(), a->GetCol(), b->GetRow(),
 				&alpha,
-				b->d_matrix, CUDA_R_16F, b->GetRow(),  // Transposed matrix b
-				a->d_matrix, CUDA_R_16F, a->GetRow(),
+				b->d_matrix, b->GetRow(),
+				a->d_matrix, a->GetRow(),
 				&beta,
-				d_matrix, CUDA_R_16F, b->GetCol(),
-				CUDA_R_32F, CUBLAS_GEMM_DEFAULT
+				d_matrix, b->GetCol()
 			);
 		}
 		
@@ -501,7 +538,7 @@ public:
 
 	void RowMax(Matrix<T>* matrix)
 	{
-		GPURowMax <<< GRID_SIZE, BLOCK_SIZE >>> (d_matrix, matrix->d_matrix, matrix->m_row, matrix->m_column);
+		GPURowMax <<< (m_column + 1024 - 1) / 1024, 1024 >> > (d_matrix, matrix->d_matrix, matrix->m_row, matrix->m_column);
 
 		//cudaMemcpy(result, d_matrix, 12000, cudaMemcpyDeviceToHost);
 		//
@@ -527,7 +564,7 @@ public:
 
 	void RowArgmax(Matrix<T>* matrix)
 	{
-		GPURowArgmax <<< GRID_SIZE, BLOCK_SIZE >>> (d_matrix, matrix->d_matrix, matrix->m_row, matrix->m_column);
+		GPURowArgmax <<< (m_column + 1024 - 1) / 1024, 1024 >>> (d_matrix, matrix->d_matrix, matrix->m_row, matrix->m_column);
 
 		//float max_num;
 		//for (size_t i = 0; i < matrix->m_column; i++)
@@ -557,7 +594,7 @@ public:
 		//
 		//cudaMemcpy(result1, matrix->d_matrix, 512, cudaMemcpyDeviceToHost);
 
-		cudaMemcpy(h_sum_result, sum_result, 4, cudaMemcpyDeviceToHost);
+		cudaMemcpy(h_sum_result, sum_result, sizeof(float), cudaMemcpyDeviceToHost);
 
 		//float result = 0.0f;
 		//
@@ -574,7 +611,7 @@ public:
 
 	void RowSum(Matrix<T>* matrix)
 	{
-		GPURowSum << < GRID_SIZE, BLOCK_SIZE >> > (d_matrix, matrix->d_matrix, matrix->m_row, matrix->m_column);
+		GPURowSum << < (matrix->GetCol() + 1024 - 1) / 1024, 1024 >> > (d_matrix, matrix->d_matrix, matrix->m_row, matrix->m_column);
 
 		//for (size_t i = 0; i < matrix->m_column; i++)
 		//{
@@ -588,7 +625,7 @@ public:
 
 	void ColSum(Matrix<T>* matrix)
 	{
-		GPUColSum << < GRID_SIZE, BLOCK_SIZE >> > (d_matrix, matrix->d_matrix, matrix->m_row, matrix->m_column);
+		GPUColSum << < (matrix->GetRow() + 1024 - 1) / 1024, 1024 >> > (d_matrix, matrix->d_matrix, matrix->m_row, matrix->m_column);
 
 		//for (size_t i = 0; i < matrix->m_row; i++)
 		//{
@@ -1007,6 +1044,34 @@ public:
 		return d_matrix;
 	}
 
+	std::vector<std::vector<float>> GetVectorMatrix()
+	{
+		float* tmp_float_d_matrix;
+		cudaMalloc(&tmp_float_d_matrix, m_row * m_column * sizeof(float));
+
+		halftofloat << < GRID_SIZE, BLOCK_SIZE >> > (tmp_float_d_matrix, d_matrix, m_row, m_column);
+
+		float* float_m_matrix = new float[m_row * m_column];
+		cudaMemcpy(float_m_matrix, tmp_float_d_matrix, m_row * m_column * sizeof(float), cudaMemcpyDeviceToHost);
+
+		std::vector<std::vector<float>> vector_m_matrix;
+
+		for (int i = 0; i < m_column; i++)
+		{
+			std::vector<float> tmp_vector;
+			for (int j = 0; j < m_row; j++)
+			{
+				tmp_vector.push_back(float_m_matrix[i * m_row + j]);
+			}
+			vector_m_matrix.push_back(tmp_vector);
+		}
+
+		delete[] float_m_matrix;
+		cudaFree(tmp_float_d_matrix);
+
+		return vector_m_matrix;
+	}
+
 private:
 	size_t m_row;
 	size_t m_column;
@@ -1036,6 +1101,6 @@ private:
 	cublasStatus_t cublasStatus;
 	cublasHandle_t handle;
 
-	const float alpha = 1.0f;
-	const float beta = 0.0f;
+	const half alpha = 1.0f;
+	const half beta = 0.0f;
 };

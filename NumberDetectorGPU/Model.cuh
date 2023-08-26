@@ -10,6 +10,9 @@
 #include "Data.cuh"
 #include "Layer.cuh"
 
+#include <fstream>
+#include <sstream>
+
 template <class T>
 class Model
 {
@@ -126,9 +129,41 @@ public:
 			// Fix add if statements to allow for non softmax categorical crossentropy last layer
 			for (size_t i = 0; i < m_layers.size() - 3; i += 2)
 			{
+				//Save();
+				//
+				//for (int g = 0; g < m_parameters.size(); g++)
+				//{
+				//	for (int v = 0; v < m_parameters[g].size(); v++)
+				//	{
+				//		for (int u = 0; u < m_parameters[g][v].size(); u++)
+				//		{
+				//			if (std::isnan(m_parameters[g][v][u]))
+				//			{
+				//				int e = 0;
+				//			}
+				//		}
+				//	}
+				//}
+
 				m_layers[i]->GetDenseLayer()->Forward();
 				m_layers[i + 1]->GetActivationFunction()->Forward();
 			}
+
+			
+
+			//if (epoch == 1891 || epoch == 1892)
+			//{
+			//	half* tmp = new half[m_layers[3]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->m_negative_log_confidencies->GetRow() * m_layers[3]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->m_negative_log_confidencies->GetCol()];
+			//	cudaMemcpy(tmp, m_layers[3]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->m_negative_log_confidencies->GetMatrix(), m_layers[3]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->m_negative_log_confidencies->GetRow() * m_layers[3]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->m_negative_log_confidencies->GetCol() * sizeof(half), cudaMemcpyDeviceToHost);
+			//	float tmp1 = tmp[0];
+			//
+			//	//tmp = new half[m_layers[2]->GetDenseLayer()->GetWeights()->GetRow() * m_layers[2]->GetDenseLayer()->GetWeights()->GetCol()];
+			//	//cudaMemcpy(tmp, m_layers[2]->GetDenseLayer()->GetWeights()->GetMatrix(), m_layers[2]->GetDenseLayer()->GetWeights()->GetRow() * m_layers[2]->GetDenseLayer()->GetWeights()->GetCol() * sizeof(half), cudaMemcpyDeviceToHost);
+			//	//tmp1 = tmp[2];
+			//
+			//	int g = 0;
+			//}
+
 			m_layers[m_layers.size() - 2]->GetDenseLayer()->Forward();
 			m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->Forward();
 
@@ -136,10 +171,10 @@ public:
 			{
 				reg_loss = 0;
 				// Do not count last dense layer
-				//for (size_t i = 0; i < m_layers.size() - 2; i += 2)
-				//{
-				//	reg_loss += m_layers[i]->GetDenseLayer()->RegularizationLoss();
-				//}
+				for (size_t i = 0; i < m_layers.size() - 2; i += 2)
+				{
+					reg_loss += m_layers[i]->GetDenseLayer()->RegularizationLoss();
+				}
 
 				//reg_loss = m_layers[2]->GetDenseLayer()->RegularizationLoss();
 
@@ -157,7 +192,6 @@ public:
 				m_layers[i]->GetActivationFunction()->Backward(m_layers[i + 1]->GetDenseLayer()->GetDinputs());
 				m_layers[i - 1]->GetDenseLayer()->Backward(m_layers[i]->GetActivationFunction()->GetDinputs());
 			}
-
 
 			for (size_t i = 0; i < m_optimizers.size(); i++)
 			{
@@ -188,6 +222,85 @@ public:
 		std::cout << ", predictions: " << __half2float(m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[0]);
 		std::cout << " " << __half2float(m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[1]);
 		std::cout << " " << __half2float(m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[2]) << std::endl;
+	}
+
+	std::vector<std::vector<std::vector<float>>> Save()
+	{
+		m_parameters.clear();
+		for (int i = 0; i < m_layers.size() - 1; i += 2)
+		{
+			m_parameters.push_back(m_layers[i]->GetDenseLayer()->GetWeights()->GetVectorMatrix());
+			m_parameters.push_back(m_layers[i]->GetDenseLayer()->GetBiases()->GetVectorMatrix());
+		}
+
+		return m_parameters;
+	}
+
+	void SaveToFile()
+	{
+		m_parameters.clear();
+		for (int i = 0; i < m_layers.size() - 1; i += 2)
+		{
+			m_parameters.push_back(m_layers[i]->GetDenseLayer()->GetWeights()->GetVectorMatrix());
+			m_parameters.push_back(m_layers[i]->GetDenseLayer()->GetBiases()->GetVectorMatrix());
+		}
+
+		std::ofstream outFile("Datatxt.txt");
+		if (outFile.is_open()) {
+			for (const auto& vectorOfVectors : m_parameters) {
+				for (const auto& innerVector : vectorOfVectors) {
+					for (const float value : innerVector) {
+						outFile << value << " ";
+					}
+					outFile << std::endl;
+				}
+				outFile << "---" << std::endl;  // Separate different vector of vectors
+			}
+			outFile.close();
+			std::cout << "Data saved to data.txt" << std::endl;
+		}
+		else {
+			std::cerr << "Unable to open file for writing." << std::endl;
+		}
+	}
+
+	void Load(std::vector<std::vector<std::vector<float>>> parameters)
+	{
+		m_parameters = parameters;
+
+		SetWeights();
+	}
+
+	void LoadFromFile()
+	{
+		std::ifstream inFile("Datatxt.txt");
+		if (inFile.is_open()) {
+			m_parameters.clear();
+			std::vector<std::vector<float>> currentVectorOfVectors;
+			std::vector<float> currentInnerVector;
+			std::string line;
+			while (std::getline(inFile, line)) {
+				if (line == "---") {
+					m_parameters.push_back(currentVectorOfVectors);
+					currentVectorOfVectors.clear();
+				}
+				else {
+					std::istringstream iss(line);
+					float value;
+					while (iss >> value) {
+						currentInnerVector.push_back(value);
+					}
+					currentVectorOfVectors.push_back(currentInnerVector);
+					currentInnerVector.clear();
+				}
+			}
+			inFile.close();
+		}
+		else {
+			std::cerr << "Unable to open file for reading." << std::endl;
+		}
+
+		SetWeights();
 	}
 
 	void InitTimer()
@@ -221,6 +334,8 @@ private:
 	std::string m_loss_type;
 	std::string m_optimizer_type;
 
+	std::vector<std::vector<std::vector<float>>> m_parameters;
+
 	// Timer
 	std::chrono::high_resolution_clock::time_point m_timer_begin;
 	std::chrono::high_resolution_clock::time_point m_timer_end;
@@ -253,6 +368,14 @@ private:
 		{
 			if (m_optimizer_type == "adam")
 				m_optimizers[i]->GetAdam()->SetInputs(m_layers[i * 2]->GetDenseLayer());
+		}
+	}
+
+	void SetWeights()
+	{
+		for (int i = 0; i < m_layers.size() - 1; i += 2)
+		{
+			m_layers[i]->GetDenseLayer()->SetParameters(&m_parameters[i], &m_parameters[i + 1]);
 		}
 	}
 };

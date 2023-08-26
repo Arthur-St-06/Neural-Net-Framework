@@ -91,6 +91,9 @@
     <ClInclude Include="Optimizer.cuh" />
     <ClInclude Include="SoftmaxCategoricalCrossentropy.cuh" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="Datatxt.txt" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.2.targets" />

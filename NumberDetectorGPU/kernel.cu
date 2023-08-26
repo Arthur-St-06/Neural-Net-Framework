@@ -8,13 +8,16 @@ int main()
 
 	Model<half>* model = new Model<half>;
 
-	model->Add(2, 8096, "relu");
-	model->Add(8096, 8096, "relu");
-	model->Add(8096, 3, "softmax", "categorical_crossentropy");
+	model->Add(2, 64, "relu");
+	model->Add(64, 3, "softmax", "categorical_crossentropy");
+
+	//model->SaveToFile();
+	model->LoadFromFile();
 
 	model->Compile("adam");
-	model->Fit(data->GetTrainingDataInputs(), data->GetTrainingDataOutputs(), 1001, 100);
-	
+
+	model->Fit(data->GetTrainingDataInputs(), data->GetTrainingDataOutputs(), 1000, 100);
+
 	model->Test(data->GetValidatingDataInputs(), data->GetValidatingDataOutputs());
 
 	return 0;

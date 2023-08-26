@@ -5,6 +5,18 @@
 class Loss
 {
 public:
+	Matrix<half>* m_predictions;
+	Matrix<half>* m_ground_truth;
+	Matrix<half>* m_one_hot_encoded_ground_truth;
+
+	// Loss
+	Matrix<half>* m_negative_log_confidencies;
+	float m_data_loss;
+
+	// Accuracy
+	Matrix<half>* m_num_predictions_equal_ground_truth;
+	float m_data_accuracy;
+
 	Loss()
 	{	}
 
@@ -49,17 +61,7 @@ private:
 	virtual void Backward() {}
 
 protected:
-	Matrix<half>* m_predictions;
-	Matrix<half>* m_ground_truth;
-	Matrix<half>* m_one_hot_encoded_ground_truth;
-
-	// Loss
-	Matrix<half>* m_negative_log_confidencies;
-	float m_data_loss;
-
-	// Accuracy
-	Matrix<half>* m_num_predictions_equal_ground_truth;
-	float m_data_accuracy;
+	
 
 	// Backpropagation
 	Matrix<half>* m_dinputs;

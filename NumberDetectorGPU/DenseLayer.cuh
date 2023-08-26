@@ -42,6 +42,15 @@ public:
 			m_biases_dl2 = new Matrix<T>(1, m_row);
 	}
 
+	void SetParameters(std::vector<std::vector<float>>* weights_vectors, std::vector<std::vector<float>>* biases_vectors)
+	{
+		delete m_weights;
+		delete m_biases;
+
+		m_weights = new Matrix<T>(weights_vectors);
+		m_biases = new Matrix<T>(biases_vectors);
+	}
+
 	void SetInputs(Matrix<T>* inputs)
 	{
 		m_inputs_row = inputs->GetRow();
@@ -125,7 +134,7 @@ public:
 		{
 			m_biases_dl2->PowerMatrix(m_biases, 2);
 			m_regularization_loss += m_bias_regularizer_l2 * m_biases_dl2->Sum(m_biases_dl2);
-		}	
+		}
 
 		return m_regularization_loss;
 	}

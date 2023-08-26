@@ -32,8 +32,8 @@ public:
 		m_weight_momentum = new Matrix<T>(m_layer->GetWeights()->GetCol(), m_layer->GetWeights()->GetRow());
 		m_bias_momentum = new Matrix<T>(1, m_layer->GetBiases()->GetRow());
 
-		//m_weight_momentum_corrected = new Matrix<T>(m_layer->GetWeights()->GetCol(), m_layer->GetWeights()->GetRow());
-		//m_bias_momentum_corrected = new Matrix<T>(1, m_layer->GetBiases()->GetRow());
+		m_weight_momentum_corrected = new Matrix<T>(m_layer->GetWeights()->GetCol(), m_layer->GetWeights()->GetRow());
+		m_bias_momentum_corrected = new Matrix<T>(1, m_layer->GetBiases()->GetRow());
 
 		//m_weight_momentums = new Matrix<T>(m_layer->GetWeights()->GetCol(), m_layer->GetWeights()->GetRow());
 		//m_bias_momentums = new Matrix<T>(1, m_layer->GetBiases()->GetRow());
@@ -98,10 +98,10 @@ public:
 		// Update corrected momentums
 		// 
 		// Weights
-		m_weight_momentum->DivideMatrixByValue(m_weight_momentum, 1 - std::pow(m_beta1, m_iteration + 1));
+		m_weight_momentum_corrected->DivideMatrixByValue(m_weight_momentum, 1 - std::pow(m_beta1, m_iteration + 1));
 
 		// Biases
-		m_bias_momentum->DivideMatrixByValue(m_bias_momentum, 1 - std::pow(m_beta1, m_iteration + 1));
+		m_bias_momentum_corrected->DivideMatrixByValue(m_bias_momentum, 1 - std::pow(m_beta1, m_iteration + 1));
 
 		// Update cache
 		// 
@@ -131,7 +131,7 @@ public:
 		// Update parameters
 		// 
 		// Weights
-		m_learning_rate_times_weight_momentums_corrected->MultByValue(m_weight_momentum, m_decayed_learning_rate);
+		m_learning_rate_times_weight_momentums_corrected->MultByValue(m_weight_momentum_corrected, m_decayed_learning_rate);
 		m_learning_rate_times_weight_momentums_corrected_divided_by_square_rooted_weight_cache_corrected_plus_epsilon->SqrtMatrix(m_learning_rate_times_weight_momentums_corrected_divided_by_square_rooted_weight_cache_corrected_plus_epsilon);
 
 		m_learning_rate_times_weight_momentums_corrected_divided_by_square_rooted_weight_cache_corrected_plus_epsilon->AddValue(m_learning_rate_times_weight_momentums_corrected_divided_by_square_rooted_weight_cache_corrected_plus_epsilon, m_epsilon);
@@ -140,7 +140,7 @@ public:
 		m_layer->GetWeights()->SubstractMatricies(m_layer->GetWeights(), m_learning_rate_times_weight_momentums_corrected_divided_by_square_rooted_weight_cache_corrected_plus_epsilon);
 
 		// Biases
-		m_learning_rate_times_bias_momentums_corrected->MultByValue(m_bias_momentum, m_decayed_learning_rate);
+		m_learning_rate_times_bias_momentums_corrected->MultByValue(m_bias_momentum_corrected, m_decayed_learning_rate);
 		m_learning_rate_times_bias_momentums_corrected_divided_by_square_rooted_bias_cache_corrected_plus_epsilon->SqrtMatrix(m_learning_rate_times_bias_momentums_corrected_divided_by_square_rooted_bias_cache_corrected_plus_epsilon);
 
 		m_learning_rate_times_bias_momentums_corrected_divided_by_square_rooted_bias_cache_corrected_plus_epsilon->AddValue(m_learning_rate_times_bias_momentums_corrected_divided_by_square_rooted_bias_cache_corrected_plus_epsilon, m_epsilon);
@@ -158,8 +158,8 @@ private:
 	Matrix<T>* m_weight_momentum;
 	Matrix<T>* m_bias_momentum;
 
-	//Matrix<T>* m_weight_momentum_corrected;
-	//Matrix<T>* m_bias_momentum_corrected;
+	Matrix<T>* m_weight_momentum_corrected;
+	Matrix<T>* m_bias_momentum_corrected;
 
 	//Matrix<T>* m_weight_momentums;
 	//Matrix<T>* m_bias_momentums;

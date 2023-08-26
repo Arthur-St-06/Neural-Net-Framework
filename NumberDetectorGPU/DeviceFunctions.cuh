@@ -49,7 +49,8 @@ __global__ void GPUTransposedMatrix(half* d_matrix, half* matrix, int X_dim, int
 	}
 }
 
-__global__ void GPUSetRowMatrixToRow(half* d_matrix, half* matrix, int X_dim, int Y_dim, size_t row_to_get, size_t row_to_set)
+template <typename T>
+__global__ void GPUSetRowMatrixToRow(T* d_matrix, T* matrix, int X_dim, int Y_dim, size_t row_to_get, size_t row_to_set)
 {
 	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -96,12 +97,12 @@ __global__ void GPUDot(float* d_matrix, float* a, float* b, int A_x, int A_y, in
 	}
 }
 
-__device__ float DeviceMax(float a, float b)
+__device__ half DeviceMax(half a, half b)
 {
 	return a > b ? a : b;
 }
 
-__device__ float DeviceMin(float a, float b)
+__device__ half DeviceMin(half a, half b)
 {
 	return a < b ? a : b;
 }
@@ -119,40 +120,40 @@ __global__ void GPUMax(half* d_matrix, half* matrix, float min, int X_dim, int Y
 
 __global__ void GPURowMax(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
-	int Y = blockIdx.y * blockDim.y + threadIdx.y;
+	int X = blockIdx.x * blockDim.x + threadIdx.x;
 
-	if (Y < Y_dim)
+	if (X < Y_dim)
 	{
-		float max_num = matrix[Y * X_dim];
+		half max_num = matrix[X * X_dim];
 
 		for (int i = 1; i < X_dim; i++)
 		{
-			max_num = DeviceMax(max_num, matrix[Y * X_dim + i]);
+			max_num = DeviceMax(max_num, matrix[X * X_dim + i]);
 		}
 
-		d_matrix[Y] = max_num;
+		d_matrix[X] = max_num;
 	}
 }
 
 __global__ void GPURowArgmax(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
-	int Y = blockIdx.y * blockDim.y + threadIdx.y;
+	int X = blockIdx.x * blockDim.x + threadIdx.x;
 
-	if (Y < Y_dim)
+	if (X < Y_dim)
 	{
-		half max_num = matrix[Y * X_dim];
+		half max_num = matrix[X * X_dim];
 		int max_num_idx = 0;
 
 		for (int i = 1; i < X_dim; i++)
 		{
-			if (matrix[Y * X_dim + i] > max_num)
+			if (matrix[X * X_dim + i] > max_num)
 			{
 				max_num_idx = i;
-				max_num = matrix[Y * X_dim + i];
+				max_num = matrix[X * X_dim + i];
 			}
 		}
 
-		d_matrix[Y] = max_num_idx;
+		d_matrix[X] = max_num_idx;
 	}
 }
 
@@ -171,15 +172,16 @@ __global__ void GPUMatrixSum(half* matrix, float* result, int X_dim, int Y_dim)
 
 __global__ void GPURowSum(half* d_matrix, half* matrix, int X_dim, int Y_dim)
 {
-	int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
-	if (Y < Y_dim)
+	int X = blockIdx.x * blockDim.x + threadIdx.x;
+	
+	if (X < Y_dim)
 	{
-		d_matrix[Y] = 0;
+		d_matrix[X] = 0;
 
 		for (int i = 0; i < X_dim; i++)
 		{
-			d_matrix[Y] += matrix[Y * X_dim + i];
+			d_matrix[X] += matrix[X * X_dim + i];
 		}
 	}
 }
@@ -304,12 +306,24 @@ __global__ void GPUMultByValue(half* d_matrix, half* matrix, float value, int X_
 
 	if (X < X_dim && Y < Y_dim)
 	{
-		if(__half2float(matrix[Y * X_dim + X]) * value > 0.0f && __float2half(__half2float(matrix[Y * X_dim + X]) * value) == __float2half(0.0f))
+		//d_matrix[Y * X_dim + X] = matrix[Y * X_dim + X] * __float2half(value);
+
+		float matrix_times_value = __half2float(matrix[Y * X_dim + X]) * value;
+		
+		if (matrix_times_value != 0.0f)
+		{
+			d_matrix[Y * X_dim + X] = matrix[Y * X_dim + X] * __float2half(value);
+		
+		}
+		else if (matrix_times_value > 0.0f)
+		{
 			d_matrix[Y * X_dim + X] = __float2half(0.0000001f);
-		else if(__half2float(matrix[Y * X_dim + X]) * value < 0.0f && __float2half(__half2float(matrix[Y * X_dim + X]) * value) == __float2half(0.0f))
+		}
+			
+		else if (matrix_times_value < 0.0f)
+		{
 			d_matrix[Y * X_dim + X] = __float2half(-0.0000001f);
-		else
-			d_matrix[Y * X_dim + X] = __float2half(__half2float(matrix[Y * X_dim + X]) * value);
+		}
 	}
 }
 
@@ -367,7 +381,7 @@ __global__ void GPUPowerMatrix(half* d_matrix, half* matrix, float exponent, int
 
 	if (X < X_dim && Y < Y_dim)
 	{
-		d_matrix[Y * X_dim + X] = powf(matrix[Y * X_dim + X], exponent);
+		d_matrix[Y * X_dim + X] = __float2half_ru(powf(__half2float(matrix[Y * X_dim + X]), exponent));
 	}
 }
 
