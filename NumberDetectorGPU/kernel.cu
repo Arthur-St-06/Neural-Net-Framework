@@ -4,19 +4,20 @@
 
 int main()
 {
-	Data<half>* data = new Data<half>;
+	Data<float>* data = new Data<float>;
 
-	Model<half>* model = new Model<half>;
+	Model<float>* model = new Model<float>;
 
-	model->Add(2, 64, "relu");
-	model->Add(64, 3, "softmax", "categorical_crossentropy");
+	model->Add(2, 8096, "relu");
+	model->Add(8096, 8096, "relu");
+	model->Add(8096, 3, "softmax", "categorical_crossentropy");
 
+	//model->LoadFromFile();
 	//model->SaveToFile();
-	model->LoadFromFile();
 
 	model->Compile("adam");
 
-	model->Fit(data->GetTrainingDataInputs(), data->GetTrainingDataOutputs(), 1000, 100);
+	model->Fit(data->GetTrainingDataInputs(), data->GetTrainingDataOutputs(), 1001, 100);
 
 	model->Test(data->GetValidatingDataInputs(), data->GetValidatingDataOutputs());
 

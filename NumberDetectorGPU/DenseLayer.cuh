@@ -7,7 +7,7 @@ class DenseLayer
 {
 public:
 	DenseLayer(size_t n_inputs, size_t n_outputs, INIT_TYPE init_type = INIT_TYPE::Xavier_Normal,
-		float weight_regularizer_l1 = 0.0f, float bias_regularizer_l1 = 0.0f, float weight_regularizer_l2 = 5e-4f, float bias_regularizer_l2 = 5e-4f)
+		float weight_regularizer_l1 = 0.0f, float bias_regularizer_l1 = 0.0f, float weight_regularizer_l2 = 0.0f, float bias_regularizer_l2 = 0.0f)
 		: m_column(n_inputs)
 		, m_row(n_outputs)
 		, m_init_type(init_type)
@@ -78,11 +78,7 @@ public:
 	void Backward(Matrix<T>* dvalues)
 	{
 		// Gradients on parameters
-
-		//m_transposed_inputs->SetTransposedMatrix(m_inputs);
-
 		m_dweights->Dot(m_inputs, dvalues, "T");
-
 		m_dbiases->ColSum(dvalues);
 
 		// Gradients on regularization

@@ -50,20 +50,26 @@ public:
 		m_activation_function_type = activation_function_type;
 		m_loss_type = loss_type;
 
-		DenseLayer<T>* dense = new DenseLayer<T>(input, output);
-
-		Layer<T>* dense_layer = new Layer<T>(dense);
-
-		m_layers.push_back(dense_layer);
-
 		if (m_activation_function_type == "relu")
 		{
+			DenseLayer<T>* dense = new DenseLayer<T>(input, output, INIT_TYPE::Xavier_Normal, 0, 0, 5e-4, 5e-4);
+
+			Layer<T>* dense_layer = new Layer<T>(dense);
+
+			m_layers.push_back(dense_layer);
+
 			ActivationFunction<T>* activation_funciton = new ActivationFunction<T>(ACTIVATION_TYPE::Relu);
 			Layer<T>* activation_function_layer = new Layer<T>(activation_funciton);
 			m_layers.push_back(activation_function_layer);
 		}
 		else if (m_activation_function_type == "softmax" && m_loss_type == "categorical_crossentropy")
 		{
+			DenseLayer<T>* dense = new DenseLayer<T>(input, output, INIT_TYPE::Xavier_Normal, 0, 0, 0, 0);
+
+			Layer<T>* dense_layer = new Layer<T>(dense);
+
+			m_layers.push_back(dense_layer);
+
 			SoftmaxCategoricalCrossentropy<T>* activation_funciton = new SoftmaxCategoricalCrossentropy<T>();
 			Layer<T>* activation_function_layer = new Layer<T>(activation_funciton);
 			m_layers.push_back(activation_function_layer);
@@ -129,40 +135,9 @@ public:
 			// Fix add if statements to allow for non softmax categorical crossentropy last layer
 			for (size_t i = 0; i < m_layers.size() - 3; i += 2)
 			{
-				//Save();
-				//
-				//for (int g = 0; g < m_parameters.size(); g++)
-				//{
-				//	for (int v = 0; v < m_parameters[g].size(); v++)
-				//	{
-				//		for (int u = 0; u < m_parameters[g][v].size(); u++)
-				//		{
-				//			if (std::isnan(m_parameters[g][v][u]))
-				//			{
-				//				int e = 0;
-				//			}
-				//		}
-				//	}
-				//}
-
 				m_layers[i]->GetDenseLayer()->Forward();
 				m_layers[i + 1]->GetActivationFunction()->Forward();
 			}
-
-			
-
-			//if (epoch == 1891 || epoch == 1892)
-			//{
-			//	half* tmp = new half[m_layers[3]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->m_negative_log_confidencies->GetRow() * m_layers[3]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->m_negative_log_confidencies->GetCol()];
-			//	cudaMemcpy(tmp, m_layers[3]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->m_negative_log_confidencies->GetMatrix(), m_layers[3]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->m_negative_log_confidencies->GetRow() * m_layers[3]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->m_negative_log_confidencies->GetCol() * sizeof(half), cudaMemcpyDeviceToHost);
-			//	float tmp1 = tmp[0];
-			//
-			//	//tmp = new half[m_layers[2]->GetDenseLayer()->GetWeights()->GetRow() * m_layers[2]->GetDenseLayer()->GetWeights()->GetCol()];
-			//	//cudaMemcpy(tmp, m_layers[2]->GetDenseLayer()->GetWeights()->GetMatrix(), m_layers[2]->GetDenseLayer()->GetWeights()->GetRow() * m_layers[2]->GetDenseLayer()->GetWeights()->GetCol() * sizeof(half), cudaMemcpyDeviceToHost);
-			//	//tmp1 = tmp[2];
-			//
-			//	int g = 0;
-			//}
 
 			m_layers[m_layers.size() - 2]->GetDenseLayer()->Forward();
 			m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->Forward();
@@ -175,8 +150,6 @@ public:
 				{
 					reg_loss += m_layers[i]->GetDenseLayer()->RegularizationLoss();
 				}
-
-				//reg_loss = m_layers[2]->GetDenseLayer()->RegularizationLoss();
 
 				std::cout << "Epoch: " << epoch;
 				std::cout << ", loss: " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetLoss();

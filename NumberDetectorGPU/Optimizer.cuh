@@ -88,7 +88,6 @@ public:
 		m_one_minus_beta1_times_dweights->MultByValue(m_layer->GetDweights(), 1 - m_beta1);
 
 		m_weight_momentum->AddMatricies(m_weight_momentum, m_one_minus_beta1_times_dweights);
-
 		// Biases
 		m_bias_momentum->MultByValue(m_bias_momentum, m_beta1);
 		m_one_minus_beta1_times_dbiases->MultByValue(m_layer->GetDbiases(), 1 - m_beta1);
