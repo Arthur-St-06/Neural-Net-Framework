@@ -36,9 +36,9 @@ public:
 
 	float* GetPredictions()
 	{
-		float* predictions = new float[3];
+		float* predictions = new float[10];
 
-		cudaMemcpy(predictions, m_predictions->GetMatrix(), 3 * sizeof(float), cudaMemcpyDeviceToHost);
+		cudaMemcpy(predictions, m_predictions->GetMatrix(), 10 * sizeof(float), cudaMemcpyDeviceToHost);
 
 		return predictions;
 	}

@@ -4,22 +4,57 @@
 
 int main()
 {
-	Data<float>* data = new Data<float>;
+	bool test = true;
 
-	Model<float>* model = new Model<float>;
+	if (test == true)
+	{
+		Data<float>* data = new Data<float>;
 
-	model->Add(2, 128, "relu");
-	model->Add(128, 128, "relu");
-	model->Add(128, 3, "softmax", "categorical_crossentropy");
+		data->LoadValidatingDataInputs();
 
-	//model->LoadFromFile();
-	//model->SaveToFile();
+		Model<float>* model = new Model<float>;
 
-	model->Compile("adam");
+		int neurons = 512;
 
-	model->Fit(data->GetTrainingDataInputs(), data->GetTrainingDataOutputs(), 1001, 100, 3000);
+		model->Add(784, neurons, "relu");
+		model->Add(neurons, neurons, "relu");
+		model->Add(neurons, neurons, "relu");
+		model->Add(neurons, neurons, "relu");
+		model->Add(neurons, 10, "softmax", "categorical_crossentropy");
 
-	//model->Test(data->GetValidatingDataInputs(), data->GetValidatingDataOutputs());
+		model->LoadFromFile();
+
+		model->Compile("adam");
+
+		model->Test(data->GetValidatingDataInputs(), data->GetValidatingDataOutputs());
+	}
+	else
+	{
+		Data<float>* data = new Data<float>;
+
+		data->LoadTrainingDataInputs();
+		data->LoadTrainingDataOutputs();
+		data->LoadValidatingDataInputs();
+
+		Model<float>* model = new Model<float>;
+
+		int neurons = 512;
+
+		model->Add(784, neurons, "relu");
+		model->Add(neurons, neurons, "relu");
+		model->Add(neurons, neurons, "relu");
+		model->Add(neurons, neurons, "relu");
+		model->Add(neurons, 10, "softmax", "categorical_crossentropy");
+
+		model->Compile("adam");
+
+		model->Fit(data->GetTrainingDataInputs(), data->GetTrainingDataOutputs(), 100, 10, 600);
+
+		model->SaveToFile();
+
+		model->Test(data->GetValidatingDataInputs(), data->GetValidatingDataOutputs());
+	}
+	
 
 	return 0;
 }

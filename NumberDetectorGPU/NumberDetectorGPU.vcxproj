@@ -93,6 +93,9 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="Datatxt.txt" />
+    <Text Include="TrainingDataInputs.txt" />
+    <Text Include="TrainingDataOutputs.txt" />
+    <Text Include="ValidatingDataInputs.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

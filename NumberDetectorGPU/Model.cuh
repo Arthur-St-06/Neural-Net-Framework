@@ -20,9 +20,11 @@ public:
 	Model()
 	{
 		InitTimer();
+
+		//cublasCreate(&handle);
 	}
 
-	void Add(int input, int output, std::string activation_function_type, std::string loss_type = "none", float weight_regularizer_l1 = 0.0f, float bias_regularizer_l1 = 0.0f, float weight_regularizer_l2 = 0.0f, float bias_regularizer_l2 = 0.0f)
+	void Add(int input, int output, std::string activation_function_type, std::string loss_type = "none", float weight_regularizer_l1 = 0.0f, float bias_regularizer_l1 = 0.0f, float weight_regularizer_l2 = 5e-4f, float bias_regularizer_l2 = 5e-4f)
 	{
 		m_activation_function_type = activation_function_type;
 		m_loss_type = loss_type;
@@ -77,16 +79,16 @@ public:
 		{
 			std::vector<std::vector<T>> batch_data_inputs_vector;
 			std::vector<T> batch_data_outputs_vector;
-
+		
 			for (size_t j = 0; j < batch_size; j++)
 			{
 				batch_data_inputs_vector.push_back(data_inputs[0][step * batch_size + j]);
 				batch_data_outputs_vector.push_back(data_outputs[0][0][step * batch_size + j]);
 			}
-
+		
 			Matrix<T>* batch_data_inputs_matrix = new Matrix<T>(batch_data_inputs_vector);
 			Matrix<T>* batch_data_outputs_matrix = new Matrix<T>(batch_data_outputs_vector);
-
+		
 			m_data_inputs.push_back(batch_data_inputs_matrix);
 			m_data_outputs.push_back(batch_data_outputs_matrix);
 		}
@@ -102,6 +104,10 @@ public:
 
 		float accumulated_loss = 0.0f;
 		float accumulated_accuracy = 0.0f;
+
+		//Data<float>* data = new Data<float>;
+		//
+		//data->LoadValidatingDataInputs();
 
 		for (size_t epoch = 0; epoch < epochs; epoch++)
 		{
@@ -122,12 +128,12 @@ public:
 
 				if (epoch % print_every == 0)
 				{
-					//reg_loss = 0;
+					reg_loss = 0;
 					// Do not count last dense layer
-					//for (size_t i = 0; i < m_layers.size() - 2; i += 2)
-					//{
-					//	reg_loss += m_layers[i]->GetDenseLayer()->RegularizationLoss();
-					//}
+					for (size_t i = 0; i < m_layers.size() - 2; i += 2)
+					{
+						reg_loss += m_layers[i]->GetDenseLayer()->RegularizationLoss();
+					}
 
 					current_loss = m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetLoss();
 
@@ -169,31 +175,66 @@ public:
 				std::cout << ", loss: " << accumulated_loss / amount_of_batches;
 				std::cout << ", accuracy: " << accumulated_accuracy / amount_of_batches << std::endl << std::endl;
 			}
+
+			//ClearData();
+			//
+			//Test(data->GetValidatingDataInputs(), data->GetValidatingDataOutputs());
+			//
+			//ClearData();
 		}
+
+		ClearData();
 
 		StopTimer();
 	}
 
-	void Test(Matrix<T> testing_data_inputs, Matrix<T> testing_data_outputs)
+	void Test(std::vector<std::vector<T>>* testing_data_inputs, std::vector<std::vector<T>>* testing_data_outputs)
 	{
-		m_data_inputs = &testing_data_inputs;
-		m_data_outputs = &testing_data_outputs;
+		Matrix<T>* inputs_matrix = new Matrix<T>(testing_data_inputs);
+		Matrix<T>* outputs_matrix = new Matrix<T>(testing_data_outputs);
+
+		m_data_inputs.push_back(inputs_matrix);
+		m_data_outputs.push_back(outputs_matrix);
 	
 		SetInputs();
 	
-		for (size_t i = 0; i < m_layers.size() - 3; i += 2)
+		m_layers[0]->GetDenseLayer()->Forward(m_data_inputs[0]);
+		m_layers[1]->GetActivationFunction()->Forward();
+
+		// Fix add if statements to allow for non softmax categorical crossentropy last layer
+		for (size_t i = 2; i < m_layers.size() - 3; i += 2)
 		{
 			m_layers[i]->GetDenseLayer()->Forward();
 			m_layers[i + 1]->GetActivationFunction()->Forward();
 		}
+
 		m_layers[m_layers.size() - 2]->GetDenseLayer()->Forward();
-		m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->Forward();
+		m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->Forward(m_data_outputs[0]);
 	
 		std::cout << "Loss: " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetLoss();
 		std::cout << ", accuracy: " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetAccuracy();
-		std::cout << ", predictions: " << __half2float(m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[0]);
-		std::cout << " " << __half2float(m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[1]);
-		std::cout << " " << __half2float(m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[2]) << std::endl;
+		std::cout << ", predictions: ";
+
+		for (size_t i = 0; i < 10; i++)
+		{
+			std::cout << " " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[i];
+		}
+
+		std::cout << std::endl;
+
+		ClearData();
+	}
+
+	void ClearData()
+	{
+		for (size_t i = 0; i < m_data_inputs.size(); i++)
+		{
+			delete m_data_inputs[i];
+			delete m_data_outputs[i];
+		}
+
+		m_data_inputs.clear();
+		m_data_outputs.clear();
 	}
 
 	std::vector<std::vector<std::vector<float>>> Save()
@@ -312,6 +353,8 @@ private:
 	std::chrono::high_resolution_clock::time_point m_timer_begin;
 	std::chrono::high_resolution_clock::time_point m_timer_end;
 	std::chrono::nanoseconds m_timer_elapsed;
+
+	//cublasHandle_t handle;
 
 	void SetInputs()
 	{

@@ -7,7 +7,7 @@ class DenseLayer
 {
 public:
 	DenseLayer(size_t n_inputs, size_t n_outputs, INIT_TYPE init_type = INIT_TYPE::Xavier_Normal,
-		float weight_regularizer_l1 = 0.0f, float bias_regularizer_l1 = 0.0f, float weight_regularizer_l2 = 5e-4, float bias_regularizer_l2 = 5e-4)
+		float weight_regularizer_l1 = 0.0f, float bias_regularizer_l1 = 0.0f, float weight_regularizer_l2 = 0.0f, float bias_regularizer_l2 = 0.0f)
 		: m_column(n_inputs)
 		, m_row(n_outputs)
 		, m_init_type(init_type)

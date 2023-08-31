@@ -340,7 +340,10 @@ public:
 
 	~Matrix()
 	{
+		delete h_sum_result;
 
+		cudaFree(d_matrix);
+		cudaFree(sum_result);
 	}
 
 	void InitMatrix(size_t column, size_t row, INIT_TYPE init_type = INIT_TYPE::Zero)
