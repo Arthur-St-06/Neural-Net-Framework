@@ -8,7 +8,7 @@ class Data
 public:
 	Data()
 	{
-		m_training_data_inputs = new Matrix<T>({ 
+		m_training_data_inputs = new std::vector<std::vector<T>>({
 {0.0, 0.0},
 {0.0002087553293677047, 0.0009789913892745972},
 {0.0009762641275301576, 0.0017478330992162228},
@@ -3011,7 +3011,7 @@ public:
 {-0.9934439659118652, 0.1143200471997261} });
 
 
-		m_training_data_outputs = new Matrix<T>({ {0,
+		m_training_data_outputs = new std::vector<std::vector<T>>({ {0,
 		0,
 		0,
 		0,
@@ -6019,14 +6019,14 @@ public:
 		m_validating_data_outputs = new Matrix<T>(1.0f);
 	}
 
-	Matrix<T>* GetTrainingDataInputs() { return m_training_data_inputs; }
-	Matrix<T>* GetTrainingDataOutputs() { return m_training_data_outputs; }
+	std::vector<std::vector<T>>* GetTrainingDataInputs() { return m_training_data_inputs; }
+	std::vector<std::vector<T>>* GetTrainingDataOutputs() { return m_training_data_outputs; }
 	Matrix<T>* GetValidatingDataInputs() { return m_validating_data_inputs; }
 	Matrix<T>* GetValidatingDataOutputs() { return m_validating_data_outputs; }
 
 private:
-	Matrix<T>* m_training_data_inputs;
-	Matrix<T>* m_training_data_outputs;
+	std::vector<std::vector<T>>* m_training_data_inputs;
+	std::vector<std::vector<T>>* m_training_data_outputs;
 
 	Matrix<T>* m_validating_data_inputs;
 	Matrix<T>* m_validating_data_outputs;

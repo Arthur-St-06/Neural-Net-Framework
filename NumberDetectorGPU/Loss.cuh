@@ -20,8 +20,10 @@ public:
 	Loss()
 	{	}
 
-	void Calculate()
+	void Calculate(Matrix<float>* ground_truth)
 	{
+		m_ground_truth = ground_truth;
+
 		// Find loss
 		Forward();
 		m_data_loss = m_negative_log_confidencies->Mean();
@@ -61,7 +63,7 @@ private:
 	virtual void Backward() {}
 
 protected:
-	
+
 
 	// Backpropagation
 	Matrix<float>* m_dinputs;

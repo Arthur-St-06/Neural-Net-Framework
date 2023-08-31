@@ -22,37 +22,14 @@ public:
 		InitTimer();
 	}
 
-	void AddTmp(DenseLayer<T> dense, std::string activation_function_type, std::string loss_type = "none")
-	{
-		m_activation_function_type = activation_function_type;
-		m_loss_type = loss_type;
-
-		Layer<T>* dense_layer = new Layer<T>(&dense);
-
-		m_layers.push_back(dense_layer);
-
-		if (m_activation_function_type == "relu")
-		{
-			ActivationFunction<T>* activation_funciton = new ActivationFunction<T>(ACTIVATION_TYPE::Relu);
-			Layer<T>* activation_function_layer = new Layer<T>(activation_funciton);
-			m_layers.push_back(activation_function_layer);
-		}
-		else if (m_activation_function_type == "softmax" && m_loss_type == "categorical_crossentropy")
-		{
-			SoftmaxCategoricalCrossentropy<T>* activation_funciton = new SoftmaxCategoricalCrossentropy<T>();
-			Layer<T>* activation_function_layer = new Layer<T>(activation_funciton);
-			m_layers.push_back(activation_function_layer);
-		}
-	}
-
-	void Add(int input, int output, std::string activation_function_type, std::string loss_type = "none")
+	void Add(int input, int output, std::string activation_function_type, std::string loss_type = "none", float weight_regularizer_l1 = 0.0f, float bias_regularizer_l1 = 0.0f, float weight_regularizer_l2 = 0.0f, float bias_regularizer_l2 = 0.0f)
 	{
 		m_activation_function_type = activation_function_type;
 		m_loss_type = loss_type;
 
 		if (m_activation_function_type == "relu")
 		{
-			DenseLayer<T>* dense = new DenseLayer<T>(input, output, INIT_TYPE::Xavier_Normal, 0, 0, 5e-4, 5e-4);
+			DenseLayer<T>* dense = new DenseLayer<T>(input, output, INIT_TYPE::Xavier_Normal, weight_regularizer_l1, bias_regularizer_l1, weight_regularizer_l2, bias_regularizer_l2);
 
 			Layer<T>* dense_layer = new Layer<T>(dense);
 
@@ -64,7 +41,7 @@ public:
 		}
 		else if (m_activation_function_type == "softmax" && m_loss_type == "categorical_crossentropy")
 		{
-			DenseLayer<T>* dense = new DenseLayer<T>(input, output, INIT_TYPE::Xavier_Normal, 0, 0, 0, 0);
+			DenseLayer<T>* dense = new DenseLayer<T>(input, output, INIT_TYPE::Xavier_Normal, 0.0f, 0.0f, 0.0f, 0.0f);
 
 			Layer<T>* dense_layer = new Layer<T>(dense);
 
@@ -76,27 +53,7 @@ public:
 		}
 	}
 
-	void Compile(SGD sgd)
-	{
-		m_optimizer_type = "sgd";
-
-		for (int i = 0; i < m_layers.size() - 1; i += 2)
-		{
-			m_optimizers.push_back(new Optimizer<T>(&sgd));
-		}
-	}
-
-	void Compile(RMSprop rmsprop)
-	{
-		m_optimizer_type = "rmsprop";
-
-		for (int i = 0; i < m_layers.size() - 1; i += 2)
-		{
-			m_optimizers.push_back(new Optimizer<T>(&rmsprop));
-		}
-	}
-
-	void Compile(std::string optimizer_type)
+	void Compile(std::string optimizer_type, float learning_rate = 0.02f, float decay = 1e-3f, float epsilon = 1e-7f, float beta_1 = 0.9f, float beta_2 = 0.999f)
 	{
 		m_optimizer_type = optimizer_type;
 
@@ -104,71 +61,113 @@ public:
 		{
 			if (m_optimizer_type == "adam")
 			{
-				Adam<T>* adam_optimizer = new Adam<T>();
+				Adam<T>* adam_optimizer = new Adam<T>(learning_rate, decay, epsilon, beta_1, beta_2);
 				Optimizer<T>* optimizer = new Optimizer<T>(adam_optimizer);
 				m_optimizers.push_back(optimizer);
 			}
 		}
 	}
 
-	void TmpFit(Matrix<T> data_inputs, Matrix<T> data_outputs, size_t epochs, size_t print_every)
+	void Fit(std::vector<std::vector<T>>* data_inputs, std::vector<std::vector<T>>* data_outputs, size_t epochs, size_t print_every, size_t batch_size = 1)
 	{
-		m_data_inputs = &data_inputs;
-		m_data_outputs = &data_outputs;
+		// Setting batched data
+		size_t amount_of_batches = std::floor(data_inputs[0].size() / batch_size);
+
+		for (size_t step = 0; step < amount_of_batches; step++)
+		{
+			std::vector<std::vector<T>> batch_data_inputs_vector;
+			std::vector<T> batch_data_outputs_vector;
+
+			for (size_t j = 0; j < batch_size; j++)
+			{
+				batch_data_inputs_vector.push_back(data_inputs[0][step * batch_size + j]);
+				batch_data_outputs_vector.push_back(data_outputs[0][0][step * batch_size + j]);
+			}
+
+			Matrix<T>* batch_data_inputs_matrix = new Matrix<T>(batch_data_inputs_vector);
+			Matrix<T>* batch_data_outputs_matrix = new Matrix<T>(batch_data_outputs_vector);
+
+			m_data_inputs.push_back(batch_data_inputs_matrix);
+			m_data_outputs.push_back(batch_data_outputs_matrix);
+		}
 
 		SetInputs();
-	}
-
-	void Fit(Matrix<T> data_inputs, Matrix<T> data_outputs, size_t epochs, size_t print_every)
-	{
-		m_data_inputs = &data_inputs;
-		m_data_outputs = &data_outputs;
-
-		SetInputs();
-
-		float reg_loss = 0.0f;
 
 		StartTimer();
 
+		float reg_loss = 0.0f;
+
+		float current_loss = 0.0f;
+		float current_accuracy = 0.0f;
+
+		float accumulated_loss = 0.0f;
+		float accumulated_accuracy = 0.0f;
+
 		for (size_t epoch = 0; epoch < epochs; epoch++)
 		{
-			// Fix add if statements to allow for non softmax categorical crossentropy last layer
-			for (size_t i = 0; i < m_layers.size() - 3; i += 2)
+			for (size_t step = 0; step < amount_of_batches; step++)
 			{
-				m_layers[i]->GetDenseLayer()->Forward();
-				m_layers[i + 1]->GetActivationFunction()->Forward();
-			}
+				m_layers[0]->GetDenseLayer()->Forward(m_data_inputs[step]);
+				m_layers[1]->GetActivationFunction()->Forward();
 
-			m_layers[m_layers.size() - 2]->GetDenseLayer()->Forward();
-			m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->Forward();
-
-			if (epoch % print_every == 0)
-			{
-				reg_loss = 0;
-				// Do not count last dense layer
-				for (size_t i = 0; i < m_layers.size() - 2; i += 2)
+				// Fix add if statements to allow for non softmax categorical crossentropy last layer
+				for (size_t i = 2; i < m_layers.size() - 3; i += 2)
 				{
-					reg_loss += m_layers[i]->GetDenseLayer()->RegularizationLoss();
+					m_layers[i]->GetDenseLayer()->Forward();
+					m_layers[i + 1]->GetActivationFunction()->Forward();
 				}
 
+				m_layers[m_layers.size() - 2]->GetDenseLayer()->Forward();
+				m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->Forward(m_data_outputs[step]);
+
+				if (epoch % print_every == 0)
+				{
+					//reg_loss = 0;
+					// Do not count last dense layer
+					//for (size_t i = 0; i < m_layers.size() - 2; i += 2)
+					//{
+					//	reg_loss += m_layers[i]->GetDenseLayer()->RegularizationLoss();
+					//}
+
+					current_loss = m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetLoss();
+
+					if (step == 0)
+					{
+						accumulated_loss = 0.0f;
+						accumulated_accuracy = 0.0f;
+					}
+
+					current_loss = m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetLoss();
+					current_accuracy = m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetAccuracy();
+
+					accumulated_loss += current_loss;
+					accumulated_accuracy += current_accuracy;
+
+					std::cout << "Step: " << step + 1;
+					std::cout << ", loss: " << current_loss;
+					std::cout << ", reg loss: " << reg_loss;
+					std::cout << ", accuracy: " << current_accuracy << std::endl;
+				}
+
+				m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->Backward();
+				m_layers[m_layers.size() - 2]->GetDenseLayer()->Backward(m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetDinputs());
+
+				for (int i = m_layers.size() - 3; i >= 0; i -= 2)
+				{
+					m_layers[i]->GetActivationFunction()->Backward(m_layers[i + 1]->GetDenseLayer()->GetDinputs());
+					m_layers[i - 1]->GetDenseLayer()->Backward(m_layers[i]->GetActivationFunction()->GetDinputs());
+				}
+
+				for (size_t i = 0; i < m_optimizers.size(); i++)
+				{
+					m_optimizers[i]->GetAdam()->UpdateParams();
+				}
+			}
+			if (epoch % print_every == 0)
+			{
 				std::cout << "Epoch: " << epoch;
-				std::cout << ", loss: " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetLoss();
-				std::cout << ", reg loss: " << reg_loss;
-				std::cout << ", accuracy: " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetAccuracy() << std::endl;
-			}
-
-			m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->Backward();
-			m_layers[m_layers.size() - 2]->GetDenseLayer()->Backward(m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetDinputs());
-
-			for (int i = m_layers.size() - 3; i >= 0; i -= 2)
-			{
-				m_layers[i]->GetActivationFunction()->Backward(m_layers[i + 1]->GetDenseLayer()->GetDinputs());
-				m_layers[i - 1]->GetDenseLayer()->Backward(m_layers[i]->GetActivationFunction()->GetDinputs());
-			}
-
-			for (size_t i = 0; i < m_optimizers.size(); i++)
-			{
-				m_optimizers[i]->GetAdam()->UpdateParams();
+				std::cout << ", loss: " << accumulated_loss / amount_of_batches;
+				std::cout << ", accuracy: " << accumulated_accuracy / amount_of_batches << std::endl << std::endl;
 			}
 		}
 
@@ -179,9 +178,9 @@ public:
 	{
 		m_data_inputs = &testing_data_inputs;
 		m_data_outputs = &testing_data_outputs;
-
+	
 		SetInputs();
-
+	
 		for (size_t i = 0; i < m_layers.size() - 3; i += 2)
 		{
 			m_layers[i]->GetDenseLayer()->Forward();
@@ -189,7 +188,7 @@ public:
 		}
 		m_layers[m_layers.size() - 2]->GetDenseLayer()->Forward();
 		m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->Forward();
-
+	
 		std::cout << "Loss: " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetLoss();
 		std::cout << ", accuracy: " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetAccuracy();
 		std::cout << ", predictions: " << __half2float(m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[0]);
@@ -300,8 +299,8 @@ private:
 	std::vector<Layer<T>*> m_layers;
 	std::vector<Optimizer<T>*> m_optimizers;
 
-	Matrix<T>* m_data_inputs;
-	Matrix<T>* m_data_outputs;
+	std::vector<Matrix<T>*> m_data_inputs;
+	std::vector<Matrix<T>*> m_data_outputs;
 
 	std::string m_activation_function_type;
 	std::string m_loss_type;
@@ -322,7 +321,7 @@ private:
 
 	void SetLayersInputs()
 	{
-		m_layers[0]->GetDenseLayer()->SetInputs(m_data_inputs);
+		m_layers[0]->GetDenseLayer()->SetInputs(m_data_inputs[0]);
 
 
 		for (int i = 1; i < m_layers.size() - 1; i += 2)
@@ -332,7 +331,7 @@ private:
 		}
 
 		if (m_activation_function_type == "softmax" && m_loss_type == "categorical_crossentropy")
-			m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->SetInputs(m_layers[m_layers.size() - 2]->GetDenseLayer()->GetOutputs(), m_data_outputs);
+			m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->SetInputs(m_layers[m_layers.size() - 2]->GetDenseLayer()->GetOutputs(), m_data_outputs[0]);
 	}
 
 	void SetOptimizersInputs()

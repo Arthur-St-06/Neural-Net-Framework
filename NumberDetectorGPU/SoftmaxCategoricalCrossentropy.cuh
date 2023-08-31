@@ -41,10 +41,12 @@ public:
 		m_dinputs->InitMatrix(m_softmax->GetOutputs()->GetCol(), m_softmax->GetOutputs()->GetRow());
 	}
 
-	void Forward()
+	void Forward(Matrix<T>* ground_truth)
 	{
+		m_ground_truth = ground_truth;
+
 		m_softmax->Forward();
-		m_loss->Calculate();
+		m_loss->Calculate(m_ground_truth);
 	}
 
 	void Backward()

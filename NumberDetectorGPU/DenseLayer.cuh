@@ -7,7 +7,7 @@ class DenseLayer
 {
 public:
 	DenseLayer(size_t n_inputs, size_t n_outputs, INIT_TYPE init_type = INIT_TYPE::Xavier_Normal,
-		float weight_regularizer_l1 = 0.0f, float bias_regularizer_l1 = 0.0f, float weight_regularizer_l2 = 0.0f, float bias_regularizer_l2 = 0.0f)
+		float weight_regularizer_l1 = 0.0f, float bias_regularizer_l1 = 0.0f, float weight_regularizer_l2 = 5e-4, float bias_regularizer_l2 = 5e-4)
 		: m_column(n_inputs)
 		, m_row(n_outputs)
 		, m_init_type(init_type)
@@ -30,12 +30,12 @@ public:
 
 		// Initialize regularizars derivatives
 		if (m_weight_regularizer_l1 > 0)
-			m_weights_dl1 = new Matrix<T>(m_column, m_row); 
+			m_weights_dl1 = new Matrix<T>(m_column, m_row);
 
-		if (m_bias_regularizer_l1 > 0) 
+		if (m_bias_regularizer_l1 > 0)
 			m_biases_dl1 = new Matrix<T>(1, m_row);
 
-		if (m_weight_regularizer_l2 > 0) 
+		if (m_weight_regularizer_l2 > 0)
 			m_weights_dl2 = new Matrix<T>(m_column, m_row);
 
 		if (m_bias_regularizer_l2 > 0)
@@ -61,17 +61,24 @@ public:
 			m_outputs->Clear();
 			m_dinputs->Clear();
 		}
-		
-		if(m_inputs != inputs)
+
+		if (m_inputs != inputs)
 			m_inputs = inputs;
 		m_outputs->InitMatrix(m_inputs->GetCol(), m_row);
 		m_dinputs->InitMatrix(m_inputs_column, m_inputs_row);
 	}
 
+	void Forward(Matrix<T>* inputs)
+	{
+		m_inputs = inputs;
+
+		m_outputs->Dot(m_inputs, m_weights);
+		m_outputs->AddSingleRow(m_biases);
+	}
+
 	void Forward()
 	{
 		m_outputs->Dot(m_inputs, m_weights);
-		//cudaMemcpy(result, m_outputs->d_matrix, 768000, cudaMemcpyDeviceToHost);
 		m_outputs->AddSingleRow(m_biases);
 	}
 
@@ -110,7 +117,7 @@ public:
 	float RegularizationLoss()
 	{
 		m_regularization_loss = 0.0f;
-		
+
 		if (m_weight_regularizer_l1 > 0)
 		{
 			m_weights_dl1->Abs(m_weights);
@@ -183,7 +190,7 @@ public:
 	float GetBiasRegularizerL2()
 	{
 		return m_bias_regularizer_l2;
-	}	
+	}
 
 private:
 	size_t m_row;

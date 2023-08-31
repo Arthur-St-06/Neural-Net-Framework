@@ -330,7 +330,7 @@ public:
 		//	}
 		//}
 
-		GPUMatrix <<< GRID_SIZE, BLOCK_SIZE >>> (d_matrix, matrix->d_matrix, m_row, m_column);
+		GPUMatrix << < GRID_SIZE, BLOCK_SIZE >> > (d_matrix, matrix->d_matrix, m_row, m_column);
 	}
 
 	Matrix()
@@ -370,7 +370,7 @@ public:
 
 		d_size = m_row * m_column * sizeof(T);
 		cudaMalloc(&d_matrix, d_size);
-		
+
 		h_sum_result = new float;
 		cudaMalloc(&sum_result, sizeof(float));
 
@@ -384,7 +384,7 @@ public:
 		//m_data_type = DATA_TYPE::Float;
 
 		const std::type_info& type = typeid(T);
-		
+
 		if (type == typeid(float))
 		{
 			m_data_type = DATA_TYPE::Float;
@@ -440,8 +440,8 @@ public:
 
 	void SetTransposedMatrix(Matrix<T>* matrix)
 	{
-		GPUTransposedMatrix <<< GRID_SIZE, BLOCK_SIZE >>> (d_matrix, matrix->d_matrix, m_row, m_column);
-		
+		GPUTransposedMatrix << < GRID_SIZE, BLOCK_SIZE >> > (d_matrix, matrix->d_matrix, m_row, m_column);
+
 		//for (size_t i = 0; i < m_column; i++)
 		//{
 		//	for (size_t j = 0; j < m_row; j++)
@@ -453,7 +453,7 @@ public:
 
 	void SetRowMatrixToRow(Matrix<T>* matrix, size_t row_to_get, size_t row_to_set)
 	{
-		GPUSetRowMatrixToRow <<< (matrix->GetRow() + 1024 - 1) / 1024, 1024 >>> (d_matrix, matrix->d_matrix, m_row, m_column, row_to_get, row_to_set);
+		GPUSetRowMatrixToRow << < (matrix->GetRow() + 1024 - 1) / 1024, 1024 >> > (d_matrix, matrix->d_matrix, m_row, m_column, row_to_get, row_to_set);
 
 		//for (size_t i = 0; i < matrix->GetRow(); i++)
 		//{
@@ -463,7 +463,7 @@ public:
 
 	void SetRowMatrixToColumn(Matrix<T>* matrix, size_t row_to_get, size_t col_to_set)
 	{
-		GPUSetRowMatrixToColumn <<< (matrix->GetRow() + 1024 - 1) / 1024, 1024 >>> (d_matrix, matrix->d_matrix, m_row, m_column, row_to_get, col_to_set);
+		GPUSetRowMatrixToColumn << < (matrix->GetRow() + 1024 - 1) / 1024, 1024 >> > (d_matrix, matrix->d_matrix, m_row, m_column, row_to_get, col_to_set);
 
 		//for (size_t i = 0; i < matrix->GetRow(); i++)
 		//{
@@ -473,7 +473,7 @@ public:
 
 	void SetColMatrixToRow(Matrix<T>* matrix, size_t col_to_get, size_t row_to_set)
 	{
-		GPUSetColMatrixToRow <<< (matrix->GetCol() + 1024 - 1) / 1024, 1024 >>> (d_matrix, matrix->d_matrix, m_row, m_column, col_to_get, row_to_set);
+		GPUSetColMatrixToRow << < (matrix->GetCol() + 1024 - 1) / 1024, 1024 >> > (d_matrix, matrix->d_matrix, m_row, m_column, col_to_get, row_to_set);
 
 		//for (size_t i = 0; i < matrix->GetCol(); i++)
 		//{
@@ -497,7 +497,7 @@ public:
 				d_matrix, b->GetRow()
 			);
 		}
-		else if(op == "T")
+		else if (op == "T")
 		{
 			cublasSgemm(
 				handle, CUBLAS_OP_N, CUBLAS_OP_T,
@@ -521,8 +521,8 @@ public:
 				d_matrix, b->GetCol()
 			);
 		}
-		
-		
+
+
 		//cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N,
 		//	b->GetRow(), a->GetCol(), b->GetCol(),
 		//	&alpha, b->d_matrix, b->GetRow(),
@@ -544,7 +544,7 @@ public:
 
 	void Max(float min, Matrix<T>* matrix)
 	{
-		GPUMax <<< GRID_SIZE, BLOCK_SIZE >>> (d_matrix, matrix->d_matrix, min, m_row, m_column);
+		GPUMax << < GRID_SIZE, BLOCK_SIZE >> > (d_matrix, matrix->d_matrix, min, m_row, m_column);
 
 		//for (size_t i = 0; i < m_column; i++)
 		//{
@@ -557,7 +557,7 @@ public:
 
 	void RowMax(Matrix<T>* matrix)
 	{
-		GPURowMax <<< (m_column + 1024 - 1) / 1024, 1024 >> > (d_matrix, matrix->d_matrix, matrix->m_row, matrix->m_column);
+		GPURowMax << < (m_column + 1024 - 1) / 1024, 1024 >> > (d_matrix, matrix->d_matrix, matrix->m_row, matrix->m_column);
 
 		//cudaMemcpy(result, d_matrix, 12000, cudaMemcpyDeviceToHost);
 		//
@@ -583,7 +583,7 @@ public:
 
 	void RowArgmax(Matrix<T>* matrix)
 	{
-		GPURowArgmax <<< (m_column + 1024 - 1) / 1024, 1024 >>> (d_matrix, matrix->d_matrix, matrix->m_row, matrix->m_column);
+		GPURowArgmax << < (m_column + 1024 - 1) / 1024, 1024 >> > (d_matrix, matrix->d_matrix, matrix->m_row, matrix->m_column);
 
 		//float max_num;
 		//for (size_t i = 0; i < matrix->m_column; i++)
@@ -605,7 +605,7 @@ public:
 
 	float Sum(Matrix<T>* matrix)
 	{
-		GPUMatrixSum <<< 1, 1 >>> (matrix->d_matrix, sum_result, matrix->m_row, matrix->m_column);
+		GPUMatrixSum << < 1, 1 >> > (matrix->d_matrix, sum_result, matrix->m_row, matrix->m_column);
 
 		//halftofloat << < GRID_SIZE, BLOCK_SIZE >> > (d_matrix, h_matrix, m_row, m_column);
 
@@ -872,11 +872,11 @@ public:
 		//float* tmp1 = new float[m_column * m_row];
 		//cudaMemcpy(tmp1, d_matrix, m_column * m_row * sizeof(float), cudaMemcpyDeviceToHost);
 
-		
+
 
 		//halftofloat << < GRID_SIZE, BLOCK_SIZE >> > (d_matrix, h_matrix, m_row, m_column);
 
-		
+
 
 		//for (size_t i = 0; i < m_column; i++)
 		//{

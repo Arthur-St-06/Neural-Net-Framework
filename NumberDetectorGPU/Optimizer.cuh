@@ -17,17 +17,17 @@ template <class T>
 class Adam
 {
 public:
-	Adam()
+	Adam(float learning_rate = 0.02f, float decay = 5e-7f, float epsilon = 1e-7f, float beta_1 = 0.9f, float beta_2 = 0.999f)
+		: m_learning_rate(learning_rate)
+		, m_iteration(0)
+		, m_decay(decay)
+		, m_epsilon(epsilon)
+		, m_beta1(beta_1)
+		, m_beta2(beta_2)
 	{	}
-	void SetInputs(DenseLayer<T>* layer, float learning_rate = 0.02f, float decay = 5e-7f, float epsilon = 1e-7f, float beta_1 = 0.9f, float beta_2 = 0.999f)
+	void SetInputs(DenseLayer<T>* layer)
 	{
 		m_layer = layer;
-		m_learning_rate = learning_rate;
-		m_iteration = 0;
-		m_decay = decay;
-		m_epsilon = epsilon;
-		m_beta1 = beta_1;
-		m_beta2 = beta_2;
 
 		m_weight_momentum = new Matrix<T>(m_layer->GetWeights()->GetCol(), m_layer->GetWeights()->GetRow());
 		m_bias_momentum = new Matrix<T>(1, m_layer->GetBiases()->GetRow());
