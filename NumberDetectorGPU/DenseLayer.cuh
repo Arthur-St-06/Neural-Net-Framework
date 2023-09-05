@@ -42,6 +42,7 @@ public:
 			m_biases_dl2 = new Matrix<T>(1, m_row);
 	}
 
+	// Set the weights and biases of the layer
 	void SetParameters(std::vector<std::vector<float>>* weights_vectors, std::vector<std::vector<float>>* biases_vectors)
 	{
 		delete m_weights;
@@ -51,6 +52,7 @@ public:
 		m_biases = new Matrix<T>(biases_vectors);
 	}
 
+	// Set the input matrix for the layer
 	void SetInputs(Matrix<T>* inputs)
 	{
 		m_inputs_row = inputs->GetRow();
@@ -68,6 +70,7 @@ public:
 		m_dinputs->InitMatrix(m_inputs_column, m_inputs_row);
 	}
 
+	// Perform forward pass with specified inputs
 	void Forward(Matrix<T>* inputs)
 	{
 		m_inputs = inputs;
@@ -76,12 +79,14 @@ public:
 		m_outputs->AddSingleRow(m_biases);
 	}
 
+	// Perform forward pass using stored inputs
 	void Forward()
 	{
 		m_outputs->Dot(m_inputs, m_weights);
 		m_outputs->AddSingleRow(m_biases);
 	}
 
+	// Perform backward pass and compute gradients
 	void Backward(Matrix<T>* dvalues)
 	{
 		// Gradients on parameters
@@ -114,6 +119,7 @@ public:
 		m_dinputs->Dot(dvalues, m_weights, "T2");
 	}
 
+	// Calculate and return the regularization loss
 	float RegularizationLoss()
 	{
 		m_regularization_loss = 0.0f;

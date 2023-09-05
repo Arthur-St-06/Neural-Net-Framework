@@ -2,6 +2,7 @@
 
 #include "Matrix.cuh"
 
+// Enum to specify different activation types
 enum class ACTIVATION_TYPE
 {
 	Relu,
@@ -23,6 +24,7 @@ public:
 
 		if (m_activation_type == ACTIVATION_TYPE::Softmax)
 		{
+			// Initialize additional matrices for Softmax activation
 			m_matrix_row_max = new Matrix<T>;
 			m_matrix_row_sum = new Matrix<T>;
 
@@ -35,6 +37,7 @@ public:
 		}
 	}
 
+	// Set the input matrix for the activation function
 	void SetInputs(Matrix<T>* inputs)
 	{
 		if (m_outputs->Cleared() == false)
@@ -57,6 +60,7 @@ public:
 		
 		if (m_activation_type == ACTIVATION_TYPE::Softmax)
 		{
+			// Initialize additional matrices for Softmax activation
 			if (m_matrix_row_max->Cleared() == false)
 			{
 				m_matrix_row_max->Clear();
@@ -82,26 +86,22 @@ public:
 		}
 	}
 
+	// Perform forward pass using the specified activation function
 	void Forward()
 	{
 		if (m_activation_type == ACTIVATION_TYPE::Relu) {
 			ForwardRelu();
-		}
-		else if (m_activation_type == ACTIVATION_TYPE::Sigmoid) {
-			ForwardSigmoid();
 		}
 		else if (m_activation_type == ACTIVATION_TYPE::Softmax) {
 			ForwardSoftmax();
 		}
 	}
 
+	// Perform backward pass using the specified activation function
 	void Backward(Matrix<T>* dvalues)
 	{
 		if (m_activation_type == ACTIVATION_TYPE::Relu) {
 			BackwardReLu(dvalues);
-		}
-		else if (m_activation_type == ACTIVATION_TYPE::Sigmoid) {
-			BackwardSigmoid(dvalues);
 		}
 		else if (m_activation_type == ACTIVATION_TYPE::Softmax) {
 			BackwardSoftmax(dvalues);
@@ -111,11 +111,6 @@ public:
 	void ForwardRelu()
 	{
 		m_outputs->Max(0, m_inputs);
-	}
-
-	void ForwardSigmoid()
-	{
-
 	}
 
 	void ForwardSoftmax()
@@ -133,23 +128,9 @@ public:
 	void BackwardReLu(Matrix<T>* dvalues)
 	{
 		m_dinputs->SetMatrix(dvalues);
-
-		//float* tmp = new float[dvalues->GetRow() * dvalues->GetRow()];
-		//cudaMemcpy(tmp, dvalues->d_matrix, dvalues->GetRow() * dvalues->GetRow() * sizeof(float), cudaMemcpyDeviceToHost);
-
 		m_dinputs->SetZeroIfMatrixValueIsNegative(m_inputs);
-
-		//float* tmp1 = new float[m_inputs->GetRow() * m_inputs->GetRow()];
-		//cudaMemcpy(tmp1, m_inputs->d_matrix, m_inputs->GetRow() * m_inputs->GetRow() * sizeof(float), cudaMemcpyDeviceToHost);
 	}
 
-	void BackwardSigmoid(Matrix<T>* dvalues)
-	{
-
-	}
-
-
-	// End softmax backward pass when book will talk about it in more details
 	void BackwardSoftmax(Matrix<T>* dvalues)
 	{
 		for (size_t i = 0; i < m_outputs->GetCol(); i++)
@@ -181,6 +162,11 @@ public:
 	Matrix<T>* GetDinputs()
 	{
 		return m_dinputs;
+	}
+
+	size_t GetInputsRow()
+	{
+		return m_inputs_row;
 	}
 
 private:

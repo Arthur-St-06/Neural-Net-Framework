@@ -81,6 +81,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ActivationFunctions.cuh" />
+    <ClInclude Include="CublasHandler.cuh" />
     <ClInclude Include="Data.cuh" />
     <ClInclude Include="DenseLayer.cuh" />
     <ClInclude Include="DeviceFunctions.cuh" />
@@ -92,10 +93,12 @@
     <ClInclude Include="SoftmaxCategoricalCrossentropy.cuh" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="Datatxt.txt" />
+    <Text Include="Parameters.txt" />
+    <Text Include="ParametersSave.txt" />
     <Text Include="TrainingDataInputs.txt" />
     <Text Include="TrainingDataOutputs.txt" />
     <Text Include="ValidatingDataInputs.txt" />
+    <Text Include="ValidatingDataOutputs.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

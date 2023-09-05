@@ -10,15 +10,16 @@ class SoftmaxCategoricalCrossentropy
 public:
 	SoftmaxCategoricalCrossentropy()
 	{
+		// Create instances of ActivationFunction and CategoricalCrossentropyLoss
 		m_softmax = new ActivationFunction<T>(ACTIVATION_TYPE::Softmax);
 		m_loss = new CategoricalCrossentropyLoss<T>();
 
 		m_ground_truth = new Matrix<T>();
 		m_softmax_inputs = new Matrix<T>();
-
 		m_dinputs = new Matrix<T>();
 	}
 
+	// Set the input matrices for Softmax and ground truth
 	void SetInputs(Matrix<T>* softmax_inputs, Matrix<T>* ground_truth)
 	{
 		if (m_softmax_inputs != softmax_inputs)
@@ -41,6 +42,7 @@ public:
 		m_dinputs->InitMatrix(m_softmax->GetOutputs()->GetCol(), m_softmax->GetOutputs()->GetRow());
 	}
 
+	// Perform the forward pass of Softmax and calculate the loss
 	void Forward(Matrix<T>* ground_truth)
 	{
 		m_ground_truth = ground_truth;
@@ -49,14 +51,13 @@ public:
 		m_loss->Calculate(m_ground_truth);
 	}
 
+	// Perform the backward pass
 	void Backward()
 	{
 		m_dinputs->SetMatrix(m_softmax->GetOutputs());
 		m_dinputs->SubstractMatrixFromValueAtMatrixIdx(m_ground_truth, 1);
 		m_dinputs->DivideMatrixByValue(m_dinputs, m_dinputs->GetCol());
 	}
-
-	//void SetGroundTruth(Matrix<float>* ground_truth) { m_ground_truth = ground_truth; }
 
 	ActivationFunction<T>* GetSoftmax()
 	{

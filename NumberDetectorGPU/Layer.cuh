@@ -10,6 +10,7 @@
 #include "Optimizer.cuh"
 #include "Data.cuh"
 
+// Layer class is used to be able to store different objects in the same vector
 template <class T>
 class Layer
 {

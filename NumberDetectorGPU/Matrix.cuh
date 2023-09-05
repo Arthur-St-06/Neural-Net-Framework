@@ -10,6 +10,7 @@
 #include <math.h>
 
 #include "DeviceFunctions.cuh"
+#include "CublasHandler.cuh"
 
 #include <cublas_v2.h>
 #include <cuda_fp16.h>
@@ -346,6 +347,11 @@ public:
 		cudaFree(sum_result);
 	}
 
+	static void SetCublasHandler(CuBLASHandler* handler)
+	{
+		m_handler = handler;
+	}
+
 	void InitMatrix(size_t column, size_t row, INIT_TYPE init_type = INIT_TYPE::Zero)
 	{
 		m_row = row;
@@ -353,7 +359,6 @@ public:
 		m_init_type = init_type;
 
 		InitVariables();
-		//Init();
 	}
 
 	void InitVariables()
@@ -378,14 +383,10 @@ public:
 		cudaMalloc(&sum_result, sizeof(float));
 
 		m_cleared = false;
-
-		cublasCreate(&handle);
 	}
 
 	void InitDataType()
 	{
-		//m_data_type = DATA_TYPE::Float;
-
 		const std::type_info& type = typeid(T);
 
 		if (type == typeid(float))
@@ -423,14 +424,11 @@ public:
 		cudaFree(sum_result);
 
 		m_cleared = true;
-
-		cublasDestroy(handle);
 	}
 
 	void SetMatrix(Matrix<T>* matrix)
 	{
 		cudaMemcpy(d_matrix, matrix->d_matrix, d_size, cudaMemcpyDeviceToDevice);
-		//GPUMatrix <<< GRID_SIZE, BLOCK_SIZE >>> (d_matrix, matrix->d_matrix, m_row, m_column);
 
 		//for (size_t i = 0; i < m_column; i++)
 		//{
@@ -491,7 +489,7 @@ public:
 		if (op == "N")
 		{
 			cublasSgemm(
-				handle, CUBLAS_OP_N, CUBLAS_OP_N,
+				m_handler->GetHandle(), CUBLAS_OP_N, CUBLAS_OP_N,
 				b->GetRow(), a->GetCol(), b->GetCol(),
 				&alpha,
 				b->d_matrix, b->GetRow(),
@@ -503,7 +501,7 @@ public:
 		else if (op == "T")
 		{
 			cublasSgemm(
-				handle, CUBLAS_OP_N, CUBLAS_OP_T,
+				m_handler->GetHandle(), CUBLAS_OP_N, CUBLAS_OP_T,
 				b->GetRow(), a->GetRow(), b->GetCol(),
 				&alpha,
 				b->d_matrix, b->GetRow(),
@@ -515,7 +513,7 @@ public:
 		else
 		{
 			cublasSgemm(
-				handle, CUBLAS_OP_T, CUBLAS_OP_N,
+				m_handler->GetHandle(), CUBLAS_OP_T, CUBLAS_OP_N,
 				b->GetCol(), a->GetCol(), b->GetRow(),
 				&alpha,
 				b->d_matrix, b->GetRow(),
@@ -524,13 +522,6 @@ public:
 				d_matrix, b->GetCol()
 			);
 		}
-
-
-		//cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N,
-		//	b->GetRow(), a->GetCol(), b->GetCol(),
-		//	&alpha, b->d_matrix, b->GetRow(),
-		//	a->d_matrix, a->GetRow(),
-		//	&beta, d_matrix, b->GetRow());
 
 		//for (std::size_t i = 0; i < a->m_matrix.size(); ++i)
 		//{
@@ -561,14 +552,6 @@ public:
 	void RowMax(Matrix<T>* matrix)
 	{
 		GPURowMax << < (m_column + 1024 - 1) / 1024, 1024 >> > (d_matrix, matrix->d_matrix, matrix->m_row, matrix->m_column);
-
-		//cudaMemcpy(result, d_matrix, 12000, cudaMemcpyDeviceToHost);
-		//
-		//cudaError_t cudaStatus;
-		//cudaStatus = cudaGetLastError();
-		//if (cudaStatus != cudaSuccess) {
-		//	fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-		//}
 
 		//float max_num;
 		//for (size_t i = 0; i < m_column; i++)
@@ -609,13 +592,6 @@ public:
 	float Sum(Matrix<T>* matrix)
 	{
 		GPUMatrixSum << < 1, 1 >> > (matrix->d_matrix, sum_result, matrix->m_row, matrix->m_column);
-
-		//halftofloat << < GRID_SIZE, BLOCK_SIZE >> > (d_matrix, h_matrix, m_row, m_column);
-
-		//float* result1 = new float[512];
-		//
-		//cudaMemcpy(result1, matrix->d_matrix, 512, cudaMemcpyDeviceToHost);
-
 		cudaMemcpy(h_sum_result, sum_result, sizeof(float), cudaMemcpyDeviceToHost);
 
 		//float result = 0.0f;
@@ -756,8 +732,6 @@ public:
 	{
 		GPUSubstractMatrixFromValueAtMatrixIdx << < (m_column + 1024 - 1) / 1024, 1024 >> > (d_matrix, matrix->d_matrix, value, m_row, m_column);
 
-		//GPUSubstractMatrixFromValueAtMatrixIdx << < (multiplier_matrix->GetCol() + 1024 - 1) / 1024, 1024 >> > (h_matrix, a_matrix, value, m_row, m_column);
-
 		//for (size_t i = 0; i < m_column; i++)
 		//{
 		//	m_matrix[i][idx_matrix->m_matrix[0][i]] = m_matrix[i][idx_matrix->m_matrix[0][i]] - value;
@@ -792,19 +766,7 @@ public:
 
 	void DivideMatrixByValue(Matrix<T>* matrix, float value)
 	{
-		//float* tmpfloat;
-		//cudaMalloc(&tmpfloat, matrix->GetRow() * matrix->GetCol() * sizeof(float));
-		//
-		//halftofloat <<<GRID_SIZE, BLOCK_SIZE >>>(tmpfloat, matrix->d_matrix, m_row, m_column);
-		//
-		//float* tmp1 = new float[matrix->GetRow() * matrix->GetCol()];
-		//cudaMemcpy(tmp1, tmpfloat, matrix->GetRow() * matrix->GetCol() * sizeof(float), cudaMemcpyDeviceToHost);
-
 		GPUDivideMatrixByValue << < GRID_SIZE, BLOCK_SIZE >> > (d_matrix, matrix->d_matrix, value, m_row, m_column);
-
-		//halftofloat << <GRID_SIZE, BLOCK_SIZE >> > (tmpfloat, d_matrix, m_row, m_column);
-		//
-		//cudaMemcpy(tmp1, tmpfloat, matrix->GetRow() * matrix->GetCol() * sizeof(float), cudaMemcpyDeviceToHost);
 
 		//for (size_t i = 0; i < m_column; i++)
 		//{
@@ -872,15 +834,6 @@ public:
 	{
 		GPUSetZeroIfMatrixValueIsNegative << < GRID_SIZE, BLOCK_SIZE >> > (d_matrix, matrix->d_matrix, m_row, m_column);
 
-		//float* tmp1 = new float[m_column * m_row];
-		//cudaMemcpy(tmp1, d_matrix, m_column * m_row * sizeof(float), cudaMemcpyDeviceToHost);
-
-
-
-		//halftofloat << < GRID_SIZE, BLOCK_SIZE >> > (d_matrix, h_matrix, m_row, m_column);
-
-
-
 		//for (size_t i = 0; i < m_column; i++)
 		//{
 		//	for (size_t j = 0; j < m_row; j++)
@@ -922,24 +875,6 @@ public:
 	void GetValuesAccordingToMatrices(Matrix<T>* values_matrix, Matrix<T>* idxs_matrix)
 	{
 		GPUGetValuesAccordingToMatrices << < (m_row + 1024 - 1) / 1024, 1024 >> > (d_matrix, values_matrix->d_matrix, idxs_matrix->d_matrix, m_row, values_matrix->GetRow());
-
-		//cudaError_t cudaStatus;
-		//cudaStatus = cudaGetLastError();
-		//if (cudaStatus != cudaSuccess) {
-		//	fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-		//}
-		//
-		//float* result = new float[36000];
-		//
-		//cudaMemcpy(result, values_matrix->d_matrix, 36000, cudaMemcpyDeviceToHost);
-		//
-		//float* result1 = new float[12000];
-		//
-		//cudaMemcpy(result1, idxs_matrix->d_matrix, 12000, cudaMemcpyDeviceToHost);
-		//
-		//float* result2 = new float[12000];
-		//
-		//cudaMemcpy(result2, d_matrix, 12000, cudaMemcpyDeviceToHost);
 
 		//if (idxs_matrix->GetCol() == 1)
 		//{
@@ -1091,7 +1026,7 @@ public:
 		}
 		else
 		{
-			float* tmp_float_d_matrix;
+			//float* tmp_float_d_matrix;
 			//cudaMalloc(&tmp_float_d_matrix, m_row * m_column * sizeof(float));
 			//
 			//halftofloat << < GRID_SIZE, BLOCK_SIZE >> > (tmp_float_d_matrix, d_matrix, m_row, m_column);
@@ -1144,8 +1079,7 @@ private:
 	bool m_cleared;
 
 	// Cublas
-	cublasStatus_t cublasStatus;
-	cublasHandle_t handle;
+	static CuBLASHandler* m_handler;
 
 	const T alpha = 1.0f;
 	const T beta = 0.0f;

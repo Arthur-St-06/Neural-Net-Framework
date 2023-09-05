@@ -2,25 +2,15 @@
 
 #include "Matrix.cuh"
 
+// Loss is a parent class for CategoricalCrossentropyLoss as it simplifies addition of new Loss types
+template <typename T>
 class Loss
 {
 public:
-	Matrix<float>* m_predictions;
-	Matrix<float>* m_ground_truth;
-	Matrix<float>* m_one_hot_encoded_ground_truth;
+	Loss() {	}
 
-	// Loss
-	Matrix<float>* m_negative_log_confidencies;
-	float m_data_loss;
-
-	// Accuracy
-	Matrix<float>* m_num_predictions_equal_ground_truth;
-	float m_data_accuracy;
-
-	Loss()
-	{	}
-
-	void Calculate(Matrix<float>* ground_truth)
+	// Calculate both loss and accuracy based on ground truth
+	void Calculate(Matrix<T>* ground_truth)
 	{
 		m_ground_truth = ground_truth;
 
@@ -34,26 +24,27 @@ public:
 		m_data_accuracy = m_num_predictions_equal_ground_truth->ColMean();
 	}
 
-	float* GetPredictions()
+	// Get a pointer to the predictions (output values)
+	T* GetPredictions()
 	{
-		float* predictions = new float[10];
+		T* predictions = new T[m_predictions->GetRow()];
 
-		cudaMemcpy(predictions, m_predictions->GetMatrix(), 10 * sizeof(float), cudaMemcpyDeviceToHost);
+		cudaMemcpy(predictions, m_predictions->GetMatrix(), m_predictions->GetRow() * sizeof(T), cudaMemcpyDeviceToHost);
 
 		return predictions;
 	}
 
-	float GetLoss()
+	T GetLoss()
 	{
 		return m_data_loss;
 	}
 
-	float GetAccuracy()
+	T GetAccuracy()
 	{
 		return m_data_accuracy;
 	}
 
-	Matrix<float>* GetDinputs()
+	Matrix<T>* GetDinputs()
 	{
 		return m_dinputs;
 	}
@@ -63,17 +54,27 @@ private:
 	virtual void Backward() {}
 
 protected:
+	Matrix<T>* m_predictions;
+	Matrix<T>* m_ground_truth;
+	Matrix<T>* m_one_hot_encoded_ground_truth;
 
+	// Loss
+	Matrix<T>* m_negative_log_confidencies;
+	T m_data_loss;
+
+	// Accuracy
+	Matrix<T>* m_num_predictions_equal_ground_truth;
+	T m_data_accuracy;
 
 	// Backpropagation
-	Matrix<float>* m_dinputs;
+	Matrix<T>* m_dinputs;
 };
 
 template <class T>
-class CategoricalCrossentropyLoss : public Loss
+class CategoricalCrossentropyLoss : public Loss<T>
 {
 public:
-	CategoricalCrossentropyLoss() : Loss()
+	CategoricalCrossentropyLoss() : Loss<T>()
 	{
 		// Initialize empty matricies, which will be filled in SetInputs functions
 		m_ground_truth = new Matrix<T>;
@@ -85,19 +86,7 @@ public:
 		m_dinputs = new Matrix<T>;
 	}
 
-	void Backward()
-	{
-		if (m_ground_truth->GetCol() == 1)
-			m_one_hot_encoded_ground_truth->OneHotEncode(m_ground_truth);
-
-		// Calculate gradient
-		m_dinputs->DivideMatrices(m_one_hot_encoded_ground_truth, m_predictions);
-
-		m_dinputs->SubstractValueFromMatrix(m_dinputs, 0);
-		// Normalize gradient for optimizer as it sums all will sum all of the samples to one
-		m_dinputs->DivideMatrixByValue(m_dinputs, m_dinputs->GetCol());
-	}
-
+	// Set inputs (predictions and ground truth) for the loss layer
 	void SetInputs(Matrix<T>* predictions, Matrix<T>* ground_truth)
 	{
 		if (m_ground_truth->Cleared() == false)
@@ -129,10 +118,25 @@ public:
 private:
 	Matrix<T>* m_clipped_predictions;
 
+	// Forward pass to calculate loss
 	void Forward()
 	{
 		m_clipped_predictions->Clip(m_predictions, 1e-7, 1 - 1e-7);
 		m_negative_log_confidencies->GetValuesAccordingToMatrices(m_clipped_predictions, m_ground_truth);
 		m_negative_log_confidencies->NegativeLog(m_negative_log_confidencies);
+	}
+
+	// Perform the backward pass to compute gradients
+	void Backward()
+	{
+		if (m_ground_truth->GetCol() == 1)
+			m_one_hot_encoded_ground_truth->OneHotEncode(m_ground_truth);
+
+		// Calculate gradient
+		m_dinputs->DivideMatrices(m_one_hot_encoded_ground_truth, m_predictions);
+
+		m_dinputs->SubstractValueFromMatrix(m_dinputs, 0);
+		// Normalize gradient for optimizer as it sums all will sum all of the samples to one
+		m_dinputs->DivideMatrixByValue(m_dinputs, m_dinputs->GetCol());
 	}
 };

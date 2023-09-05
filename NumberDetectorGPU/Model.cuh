@@ -14,16 +14,22 @@
 #include <sstream>
 
 template <class T>
+CuBLASHandler* Matrix<T>::m_handler = nullptr;
+
+template <class T>
 class Model
 {
 public:
 	Model()
 	{
+		// Initialize a timer for measuring execution time
 		InitTimer();
 
-		//cublasCreate(&handle);
+		cublas_handler = new CuBLASHandler();
+		Matrix<T>::SetCublasHandler(cublas_handler);
 	}
 
+	// Add a layers to the model
 	void Add(int input, int output, std::string activation_function_type, std::string loss_type = "none", float weight_regularizer_l1 = 0.0f, float bias_regularizer_l1 = 0.0f, float weight_regularizer_l2 = 5e-4f, float bias_regularizer_l2 = 5e-4f)
 	{
 		m_activation_function_type = activation_function_type;
@@ -31,31 +37,32 @@ public:
 
 		if (m_activation_function_type == "relu")
 		{
+			// Create a Dense layer and push back it to the m_layers vector
 			DenseLayer<T>* dense = new DenseLayer<T>(input, output, INIT_TYPE::Xavier_Normal, weight_regularizer_l1, bias_regularizer_l1, weight_regularizer_l2, bias_regularizer_l2);
-
 			Layer<T>* dense_layer = new Layer<T>(dense);
-
 			m_layers.push_back(dense_layer);
 
+			// Create a ReLU layer and push back it to the m_layers vector
 			ActivationFunction<T>* activation_funciton = new ActivationFunction<T>(ACTIVATION_TYPE::Relu);
 			Layer<T>* activation_function_layer = new Layer<T>(activation_funciton);
 			m_layers.push_back(activation_function_layer);
 		}
 		else if (m_activation_function_type == "softmax" && m_loss_type == "categorical_crossentropy")
 		{
+			// Create a Dense layer and push back it to the m_layers vector
 			DenseLayer<T>* dense = new DenseLayer<T>(input, output, INIT_TYPE::Xavier_Normal, 0.0f, 0.0f, 0.0f, 0.0f);
-
 			Layer<T>* dense_layer = new Layer<T>(dense);
-
 			m_layers.push_back(dense_layer);
 
+			// Create a Softmax Categorical Crossentropy layer and push back it to the m_layers vector
 			SoftmaxCategoricalCrossentropy<T>* activation_funciton = new SoftmaxCategoricalCrossentropy<T>();
 			Layer<T>* activation_function_layer = new Layer<T>(activation_funciton);
 			m_layers.push_back(activation_function_layer);
 		}
 	}
 
-	void Compile(std::string optimizer_type, float learning_rate = 0.02f, float decay = 1e-3f, float epsilon = 1e-7f, float beta_1 = 0.9f, float beta_2 = 0.999f)
+	// Compile the model with a specific optimizer
+	void Compile(std::string optimizer_type, float learning_rate = 0.02f, float decay = 5e-4f, float epsilon = 1e-7f, float rho = 0.9f, float beta_1 = 0.9f, float beta_2 = 0.999f)
 	{
 		m_optimizer_type = optimizer_type;
 
@@ -63,13 +70,29 @@ public:
 		{
 			if (m_optimizer_type == "adam")
 			{
+				// Create an Adam optimizer for the Dense layers and add them to m_optimizers vector
 				Adam<T>* adam_optimizer = new Adam<T>(learning_rate, decay, epsilon, beta_1, beta_2);
 				Optimizer<T>* optimizer = new Optimizer<T>(adam_optimizer);
+				m_optimizers.push_back(optimizer);
+			}
+			else if (m_optimizer_type == "SGD")
+			{
+				// Create an SGD optimizer for the Dense layers and add them to m_optimizers vector
+				SGD<T>* SGD_optimizer = new SGD<T>(learning_rate);
+				Optimizer<T>* optimizer = new Optimizer<T>(SGD_optimizer);
+				m_optimizers.push_back(optimizer);
+			}
+			else if (m_optimizer_type == "RMSprop")
+			{
+				// Create an RMSprop optimizer for the Dense layers and add them to m_optimizers vector
+				RMSprop<T>* RMSprop_optimizer = new RMSprop<T>(learning_rate, decay, epsilon, rho);
+				Optimizer<T>* optimizer = new Optimizer<T>(RMSprop_optimizer);
 				m_optimizers.push_back(optimizer);
 			}
 		}
 	}
 
+	// Traing the model
 	void Fit(std::vector<std::vector<T>>* data_inputs, std::vector<std::vector<T>>* data_outputs, size_t epochs, size_t print_every, size_t batch_size = 1)
 	{
 		// Setting batched data
@@ -93,6 +116,7 @@ public:
 			m_data_outputs.push_back(batch_data_outputs_matrix);
 		}
 
+		// Set inputs in each layer
 		SetInputs();
 
 		StartTimer();
@@ -105,18 +129,14 @@ public:
 		float accumulated_loss = 0.0f;
 		float accumulated_accuracy = 0.0f;
 
-		//Data<float>* data = new Data<float>;
-		//
-		//data->LoadValidatingDataInputs();
-
 		for (size_t epoch = 0; epoch < epochs; epoch++)
 		{
 			for (size_t step = 0; step < amount_of_batches; step++)
 			{
+				// Make forward passes through each layer
 				m_layers[0]->GetDenseLayer()->Forward(m_data_inputs[step]);
 				m_layers[1]->GetActivationFunction()->Forward();
 
-				// Fix add if statements to allow for non softmax categorical crossentropy last layer
 				for (size_t i = 2; i < m_layers.size() - 3; i += 2)
 				{
 					m_layers[i]->GetDenseLayer()->Forward();
@@ -128,12 +148,14 @@ public:
 
 				if (epoch % print_every == 0)
 				{
+					// Calculate and print base, reguralization losses and accuracy
 					reg_loss = 0;
-					// Do not count last dense layer
-					for (size_t i = 0; i < m_layers.size() - 2; i += 2)
-					{
-						reg_loss += m_layers[i]->GetDenseLayer()->RegularizationLoss();
-					}
+					// Comment reguralization loss calculating to increase speed,
+					// as it calculates sum of all of the parameters using one GPU thread
+					//for (size_t i = 0; i < m_layers.size() - 2; i += 2)
+					//{
+					//	reg_loss += m_layers[i]->GetDenseLayer()->RegularizationLoss();
+					//}
 
 					current_loss = m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetLoss();
 
@@ -155,6 +177,7 @@ public:
 					std::cout << ", accuracy: " << current_accuracy << std::endl;
 				}
 
+				// Make backward passes through each layer
 				m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->Backward();
 				m_layers[m_layers.size() - 2]->GetDenseLayer()->Backward(m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetDinputs());
 
@@ -164,32 +187,37 @@ public:
 					m_layers[i - 1]->GetDenseLayer()->Backward(m_layers[i]->GetActivationFunction()->GetDinputs());
 				}
 
+				// Change weight and biases using optimezers
 				for (size_t i = 0; i < m_optimizers.size(); i++)
 				{
-					m_optimizers[i]->GetAdam()->UpdateParams();
+					if (m_optimizer_type == "adam")
+						m_optimizers[i]->GetAdam()->UpdateParams();
+					else if (m_optimizer_type == "SGD")
+						m_optimizers[i]->GetSGD()->UpdateParams();
+					else if (m_optimizer_type == "RMSprop")
+						m_optimizers[i]->GetRMSprop()->UpdateParams();
 				}
 			}
+
+			// Print accumulated loss and accuracy through the whole epoch
 			if (epoch % print_every == 0)
 			{
 				std::cout << "Epoch: " << epoch;
 				std::cout << ", loss: " << accumulated_loss / amount_of_batches;
 				std::cout << ", accuracy: " << accumulated_accuracy / amount_of_batches << std::endl << std::endl;
 			}
-
-			//ClearData();
-			//
-			//Test(data->GetValidatingDataInputs(), data->GetValidatingDataOutputs());
-			//
-			//ClearData();
 		}
 
 		ClearData();
 
+		// Stop timer and print training time
 		StopTimer();
 	}
 
+	// Test the model
 	void Test(std::vector<std::vector<T>>* testing_data_inputs, std::vector<std::vector<T>>* testing_data_outputs)
 	{
+		// Update inputs and outputs to the testing data
 		Matrix<T>* inputs_matrix = new Matrix<T>(testing_data_inputs);
 		Matrix<T>* outputs_matrix = new Matrix<T>(testing_data_outputs);
 
@@ -198,10 +226,10 @@ public:
 	
 		SetInputs();
 	
+		// Make forward passes through each layer
 		m_layers[0]->GetDenseLayer()->Forward(m_data_inputs[0]);
 		m_layers[1]->GetActivationFunction()->Forward();
 
-		// Fix add if statements to allow for non softmax categorical crossentropy last layer
 		for (size_t i = 2; i < m_layers.size() - 3; i += 2)
 		{
 			m_layers[i]->GetDenseLayer()->Forward();
@@ -211,16 +239,32 @@ public:
 		m_layers[m_layers.size() - 2]->GetDenseLayer()->Forward();
 		m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->Forward(m_data_outputs[0]);
 	
+		// Print loss, accuracy and prediction probabilities
 		std::cout << "Loss: " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetLoss();
 		std::cout << ", accuracy: " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetAccuracy();
-		std::cout << ", predictions: ";
+		std::cout << ", probabilities: ";
 
-		for (size_t i = 0; i < 10; i++)
+		float max_probability = 0.0f;
+		int max_probability_idx = 0;
+
+		float current_probability = 0.0f;
+		
+		// Find argmax of the probabilities and print predicted class
+		for (size_t i = 0; i < m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetSoftmax()->GetInputsRow(); i++)
 		{
+			current_probability = m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[i];
+
+			if (current_probability > max_probability)
+			{
+				max_probability = current_probability;
+				max_probability_idx = i;
+			}
+
 			std::cout << " " << m_layers[m_layers.size() - 1]->GetSoftmaxCategoricalCrossentropy()->GetLoss()->GetPredictions()[i];
 		}
 
 		std::cout << std::endl;
+		std::cout << "Prediction: " << max_probability_idx;
 
 		ClearData();
 	}
@@ -236,19 +280,8 @@ public:
 		m_data_inputs.clear();
 		m_data_outputs.clear();
 	}
-
-	std::vector<std::vector<std::vector<float>>> Save()
-	{
-		m_parameters.clear();
-		for (int i = 0; i < m_layers.size() - 1; i += 2)
-		{
-			m_parameters.push_back(m_layers[i]->GetDenseLayer()->GetWeights()->GetVectorMatrix());
-			m_parameters.push_back(m_layers[i]->GetDenseLayer()->GetBiases()->GetVectorMatrix());
-		}
-
-		return m_parameters;
-	}
-
+	
+	// Save weights and biases to the file, for later loading
 	void SaveToFile()
 	{
 		m_parameters.clear();
@@ -258,7 +291,7 @@ public:
 			m_parameters.push_back(m_layers[i]->GetDenseLayer()->GetBiases()->GetVectorMatrix());
 		}
 
-		std::ofstream outFile("Datatxt.txt");
+		std::ofstream outFile("Parameters.txt");
 		if (outFile.is_open()) {
 			for (const auto& vectorOfVectors : m_parameters) {
 				for (const auto& innerVector : vectorOfVectors) {
@@ -277,16 +310,10 @@ public:
 		}
 	}
 
-	void Load(std::vector<std::vector<std::vector<float>>> parameters)
-	{
-		m_parameters = parameters;
-
-		SetWeights();
-	}
-
+	// Load weights and biases from the file
 	void LoadFromFile()
 	{
-		std::ifstream inFile("Datatxt.txt");
+		std::ifstream inFile("Parameters.txt");
 		if (inFile.is_open()) {
 			m_parameters.clear();
 			std::vector<std::vector<float>> currentVectorOfVectors;
@@ -336,6 +363,12 @@ public:
 		printf("Fitting time: %.3f seconds.\n", m_timer_elapsed.count() * 1e-9);
 	}
 
+	//static cublasHandle_t GetHandle()
+	//{
+	//	return m_handle;
+	//}
+
+	//static cublasHandle_t m_handle;
 private:
 	std::vector<Layer<T>*> m_layers;
 	std::vector<Optimizer<T>*> m_optimizers;
@@ -354,7 +387,8 @@ private:
 	std::chrono::high_resolution_clock::time_point m_timer_end;
 	std::chrono::nanoseconds m_timer_elapsed;
 
-	//cublasHandle_t handle;
+	// Create cublas handler for maxtrix multiplication once in the model, so it won't be created in every matrix
+	CuBLASHandler* cublas_handler;
 
 	void SetInputs()
 	{
@@ -383,6 +417,10 @@ private:
 		{
 			if (m_optimizer_type == "adam")
 				m_optimizers[i]->GetAdam()->SetInputs(m_layers[i * 2]->GetDenseLayer());
+			else if(m_optimizer_type == "SGD")
+				m_optimizers[i]->GetSGD()->SetInputs(m_layers[i * 2]->GetDenseLayer());
+			else if (m_optimizer_type == "RMSprop")
+				m_optimizers[i]->GetRMSprop()->SetInputs(m_layers[i * 2]->GetDenseLayer());
 		}
 	}
 

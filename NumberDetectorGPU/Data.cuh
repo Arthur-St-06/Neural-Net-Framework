@@ -15,9 +15,19 @@ public:
 		m_training_data_outputs = new std::vector<std::vector<T>>;
 
 		m_validating_data_inputs = new std::vector<std::vector<T>>;
-		m_validating_data_outputs = new std::vector<std::vector<T>>({ {8.0f} });
+		m_validating_data_outputs = new std::vector<std::vector<T>>;
 	}
 
+	~Data()
+	{
+		delete m_training_data_inputs;
+		delete m_training_data_outputs;
+
+		delete m_validating_data_inputs;
+		delete m_validating_data_outputs;
+	}
+
+	// Loads training data inputs from a file
 	void LoadTrainingDataInputs()
 	{
 		std::ifstream inputFile("TrainingDataInputs.txt");
@@ -43,6 +53,7 @@ public:
 		inputFile.close();
 	}
 
+	// Loads training data outputs from a file
 	void LoadTrainingDataOutputs()
 	{
 		std::ifstream inputFile("TrainingDataOutputs.txt");
@@ -64,6 +75,7 @@ public:
 		inputFile.close();
 	}
 
+	// Loads validating data inputs from a file
 	void LoadValidatingDataInputs()
 	{
 		std::ifstream inputFile("ValidatingDataInputs.txt");
@@ -72,19 +84,37 @@ public:
 		std::string line;
 
 		while (std::getline(inputFile, line)) {
-			if (!line.empty()) {
-				std::istringstream iss(line);
-				float pixelValue;
+			std::istringstream iss(line);
+			float pixelValue;
 
-				while (iss >> pixelValue) {
-					current_data.push_back(pixelValue);
-				}
-			}
-			else {
-				m_validating_data_inputs[0].push_back(current_data);
-				current_data.clear();
+			while (iss >> pixelValue) {
+				current_data.push_back(pixelValue);
 			}
 		}
+
+		m_validating_data_inputs[0].push_back(current_data);
+
+		inputFile.close();
+	}
+
+	// Loads validating data outputs from a file
+	void LoadValidatingDataOutputs()
+	{
+		std::ifstream inputFile("ValidatingDataOutputs.txt");
+
+		std::vector<float> current_data;
+		std::string line;
+
+		while (std::getline(inputFile, line)) {
+			std::istringstream iss(line);
+			float pixelValue;
+
+			while (iss >> pixelValue) {
+				current_data.push_back(pixelValue);
+			}
+		}
+
+		m_validating_data_outputs[0].push_back(current_data);
 
 		inputFile.close();
 	}
