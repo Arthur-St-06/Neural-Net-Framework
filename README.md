@@ -59,7 +59,7 @@ Model<float>* model = new Model<float>;
 
 // Each layer in the model should be added in the following way
 // model->Add(number of input neurons, number of output neurons, activation function, loss type(none is default),
-// weight reguralizer l1(0.0f), bias reguralizer l1(0.0f), weight reguralizer l2(0.0f), bias reguralizer l2(0.0f));
+// weight reguralizer l1(0.0f), bias reguralizer l1(0.0f), weight reguralizer l2(5e-4f), bias reguralizer l2(5e-4f));
 
 // Data from the TrainingDataInputs.txt file is automatically flattened
 
