@@ -7,10 +7,18 @@ This project is a neural network framework implemented from scratch in C++ with 
 The code is designed to demonstrate a fundamental understanding of neural networks and GPU programming. It showcases various aspects, including:
 
 - Creating neural network layers using object-oriented programming principles.
-- Implementing activation functions (Sigmoid and ReLU) for non-linear transformations.
-- Defining loss functions (Mean Squared Error) to measure the network's performance.
+- Implementing activation functions (ReLU and Softmax) for non-linear transformations.
+- Defining loss functions (Categorical Cross-Entropy) to measure the network's performance.
 - Incorporating optimization algorithms (SGD, RMSprop, and Adam) for efficient training.
+- Making AI models to generalize effectively using reguralization losses of weights and biases.
 - Leveraging GPU acceleration for matrix computations (CUDA-based).
+
+## System Configuration
+
+On my development machine, which runs Windows 10, I have the following hardware, making the training time of the model provided below equal to 2.142 seconds:
+
+- CPU: Intel Core i9-13900K
+- GPU: NVIDIA RTX 4090
 
 ## Usage
 
@@ -56,13 +64,13 @@ Model<float>* model = new Model<float>;
 // Data from the TrainingDataInputs.txt file is automatically flattened
 
 // Example layers
-model->Add(784, 128, "relu");
-model->Add(128, 128, "relu");
-model->Add(128, 10, "softmax", "categorical_crossentropy");
+model->Add(784, 32, "relu");
+model->Add(32, 32, "relu");
+model->Add(32, 10, "softmax", "categorical_crossentropy");
 
 ```
 
-6. Set model's optimizer (choose from SGD, RMSprop or adam, and set appropriate arguments for the chosen optimizer).
+6. Set model's optimizer (choose from SGD, RMSprop or Adam, and set appropriate arguments for the chosen optimizer).
 
 ```cuda
 
@@ -106,9 +114,9 @@ Model<float>* model = new Model<float>;
 ```cuda
 
 // The same layers should be added to the validating model as to the training model.
-model->Add(784, 128, "relu");
-model->Add(128, 128, "relu");
-model->Add(128, 10, "softmax", "categorical_crossentropy");
+model->Add(784, 32, "relu");
+model->Add(32, 32, "relu");
+model->Add(32, 10, "softmax", "categorical_crossentropy");
 
 ```
 
